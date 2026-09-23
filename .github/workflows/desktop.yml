@@ -3,6 +3,11 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish a release with this tag, e.g. v0.1.0 (leave empty to only build)"
+        required: false
+        default: ""
 
 permissions:
   contents: write     # the release job publishes the installers to the tag's release
@@ -33,7 +38,8 @@ jobs:
       - name: Build the installer
         shell: pwsh
         run: |
-          $version = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "0.0.${{ github.run_number }}" }
+          $tag = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}" } else { "${{ inputs.release_tag }}" }
+          $version = if ($tag) { $tag.TrimStart("v") } else { "0.0.${{ github.run_number }}" }
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" packaging\forge.iss
       - uses: actions/upload-artifact@v4
         with:
@@ -57,8 +63,9 @@ jobs:
           path: dist/Forge-macos.zip
 
   release:
-    # On a v* tag, publish both builds as a GitHub Release.
-    if: github.ref_type == 'tag'
+    # On a v* tag - or a manual run given a release_tag - publish both builds
+    # as a GitHub Release. For a manual run the tag is created on this commit.
+    if: github.ref_type == 'tag' || inputs.release_tag != ''
     needs: [windows, macos]
     runs-on: ubuntu-latest
     steps:
@@ -68,7 +75,9 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: Forge ${{ github.ref_name }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
+          target_commitish: ${{ github.sha }}
+          name: Forge ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
           generate_release_notes: true
           files: |
             dist/ForgeSetup-*.exe
