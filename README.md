@@ -159,3 +159,8 @@ The suite covers:
 - **A small model makes weaker choices** than a large one. The engine keeps those
   choices electrically correct, but not always the best parts for the idea.
   Fine-tuning on the training log is how that improves.
+
+## License
+
+MIT - see [LICENSE](LICENSE). The bundled three.js and fflate libraries in
+`forge/static/vendor/` keep their own MIT licenses, included next to them.
