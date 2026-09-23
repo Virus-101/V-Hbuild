@@ -1,0 +1,14 @@
+# Forge core: the platform server, the CLI, and the engine inside the desktop app.
+fastapi>=0.110
+uvicorn>=0.29
+pydantic>=2.7
+# 3D: exact booleans for the enclosure, and GLB / 3MF / STL export
+manifold3d>=3.0
+trimesh>=4.4
+numpy>=1.26
+networkx>=3.0      # trimesh's 3MF exporter
+lxml>=5.0          # trimesh's 3MF exporter
+# Merging ESP32 images (and flashing them from the desktop app)
+esptool>=4.8
+# Optional second model; local models need nothing but Ollama
+anthropic>=1.0

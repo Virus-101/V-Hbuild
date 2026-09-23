@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.DS_Store
+forge-out/
+.pio/
+.pytest_cache/
+*.gguf
+dist/
+build/

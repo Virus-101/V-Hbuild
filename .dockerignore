@@ -1,0 +1,8 @@
+.venv
+.git
+**/__pycache__
+forge-out
+.pytest_cache
+models/*.gguf
+dist
+build

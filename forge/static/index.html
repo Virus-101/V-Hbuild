@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Forge</title>
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1c1a; --muted: #6b6860; --line: #e3e0d8;
+  --accent: #c2410c; --accent-ink: #ffffff; --code: #f1efe9;
+  --err: #b91c1c; --err-bg: #fdecec; --warn: #a16207; --warn-bg: #fdf6e3; --info: #1d4ed8; --info-bg: #eef3fd;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161514; --panel: #1f1e1c; --ink: #ece9e2; --muted: #9c988e; --line: #34322e;
+    --accent: #f97316; --accent-ink: #1b1005; --code: #262522;
+    --err: #f87171; --err-bg: #2c1717; --warn: #facc15; --warn-bg: #2a2412; --info: #93b4ff; --info-bg: #17203a;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 80px; }
+h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.02em; }
+h2 { font-size: 16px; margin: 0 0 12px; }
+.sub { color: var(--muted); margin: 0 0 24px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+textarea { width: 100%; min-height: 96px; resize: vertical; padding: 12px; font: inherit; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+button, .btn { font: inherit; font-weight: 600; border: 0; border-radius: 8px; padding: 9px 16px; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); text-decoration: none; display: inline-block; }
+button:disabled { opacity: .55; cursor: progress; }
+.chip { background: transparent; color: var(--muted); border: 1px solid var(--line); font-weight: 500; padding: 5px 10px; font-size: 13px; }
+.chip:hover { color: var(--ink); border-color: var(--muted); }
+.mode { color: var(--muted); font-size: 13px; margin-left: auto; }
+label.off { color: var(--muted); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+.form { display: grid; gap: 10px; margin-top: 12px; max-width: 640px; }
+.form h2 { margin: 8px 0 0; font-size: 14px; }
+.form label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.form label.check { display: flex; gap: 8px; align-items: center; }
+.form input:not([type=checkbox]), .form select { font: inherit; font-size: 14px; padding: 7px 9px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+summary { cursor: pointer; }
+select { font: inherit; font-size: 14px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+#progress { margin-top: 12px; max-height: 160px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.stat b { display: block; font-size: 20px; }
+.stat span { color: var(--muted); font-size: 13px; }
+.issue { padding: 8px 12px; border-radius: 6px; margin: 6px 0; font-size: 14px; }
+.issue.error { background: var(--err-bg); color: var(--err); }
+.issue.warning { background: var(--warn-bg); color: var(--warn); }
+.issue.info { background: var(--info-bg); color: var(--info); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+code, pre { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 13px; }
+pre { background: var(--code); border-radius: 8px; padding: 14px; overflow: auto; max-height: 520px; margin: 0; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.tabs button { background: transparent; color: var(--muted); border: 1px solid var(--line); font-weight: 500; padding: 5px 10px; font-size: 13px; }
+.tabs button.on { color: var(--ink); border-color: var(--ink); }
+ul { margin: 0; padding-left: 20px; }
+.muted { color: var(--muted); }
+.error-box { color: var(--err); margin-top: 10px; }
+.tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Forge</h1>
+  <p class="sub">Describe a device. Watch it get built, then send it to your printer and your board.</p>
+
+  <section class="panel">
+    <textarea id="idea" placeholder="e.g. A plant monitor that waters my basil when the soil gets dry and shows the moisture on a little screen"></textarea>
+    <div class="row" id="examples"></div>
+    <div class="row">
+      <button id="go">Build it</button>
+      <label class="off">Model
+        <select id="provider">
+          <option value="auto">Automatic</option>
+          <option value="local">Local model (Ollama)</option>
+          <option value="claude">Claude</option>
+          <option value="offline">Offline (keywords)</option>
+        </select></label>
+      <a class="chip btn" href="/viewer" style="margin-left:auto">Open a .vbuild</a>
+    </div>
+    <p class="mode" id="mode" style="margin:10px 0 0"></p>
+    <pre id="progress" hidden></pre>
+    <div class="error-box" id="err" hidden></div>
+  </section>
+
+  <details class="panel" id="settings" hidden>
+    <summary><b>Settings</b> <span class="muted">model and machines</span></summary>
+    <form id="settings-form" class="form">
+      <h2>Model</h2>
+      <label>Planner <select name="provider">
+        <option value="auto">Automatic (the local model when Ollama is running)</option>
+        <option value="local">Local model only</option>
+        <option value="claude">Claude</option>
+        <option value="offline">Offline keywords</option></select></label>
+      <label>Ollama address <input name="ollama_url" placeholder="http://localhost:11434"></label>
+      <label>Local model name <input name="local_model" placeholder="llama3.2:3b"></label>
+      <h2>3D printer</h2>
+      <label>Connection <select name="printer.kind">
+        <option value="none">None - open the 3MF in my slicer</option>
+        <option value="octoprint">OctoPrint</option>
+        <option value="moonraker">Klipper (Moonraker / Mainsail / Fluidd)</option>
+        <option value="folder">A folder (SD card or slicer inbox)</option></select></label>
+      <label>Printer address <input name="printer.url" placeholder="http://octopi.local"></label>
+      <label>API key <input name="printer.api_key" type="password" autocomplete="off"></label>
+      <label>Folder <input name="printer.folder" placeholder="E:\"></label>
+      <label>Slicer program <input name="printer.slicer" placeholder="C:\Program Files\Prusa3D\PrusaSlicer\prusa-slicer-console.exe"></label>
+      <label>Slicer profile (.ini) <input name="printer.profile"></label>
+      <label class="check"><input type="checkbox" name="printer.start_print"> Start printing as soon as the file arrives</label>
+      <div class="row"><button type="submit">Save</button><span class="muted" id="settings-saved"></span></div>
+    </form>
+  </details>
+
+  <div id="out" hidden>
+    <section class="panel">
+      <div class="row" style="margin:0 0 8px">
+        <h2 id="name" style="margin:0"></h2>
+        <a class="btn" id="zip" style="margin-left:auto">Download .vbuild</a>
+      </div>
+      <p id="summary" class="muted" style="margin:0 0 14px"></p>
+      <div class="grid" id="stats"></div>
+      <div id="issues" style="margin-top:12px"></div>
+      <div id="notes"></div>
+    </section>
+
+    <section class="panel" style="padding:0;overflow:hidden">
+      <iframe id="viewer" title="3D build of the device" style="display:block;width:100%;height:560px;border:0"></iframe>
+    </section>
+
+    <section class="panel">
+      <h2>Parts</h2>
+      <div class="scroll"><table id="bom"></table></div>
+    </section>
+
+    <section class="panel">
+      <h2>Wiring</h2>
+      <div class="scroll"><table id="wires"></table></div>
+    </section>
+
+    <section class="panel">
+      <h2>Files</h2>
+      <div class="tabs" id="tabs"></div>
+      <pre id="file"></pre>
+    </section>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const EXAMPLES = [
+  "A plant monitor that waters my basil when the soil is dry and shows moisture on a screen",
+  "A portable weather station for the balcony that runs on battery and logs temperature, humidity and pressure",
+  "A desk light that glows red when someone walks into my office, with a button to silence it",
+  "A cat feeder that opens a flap twice a day",
+];
+EXAMPLES.forEach((t) => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.textContent = t.split(" ").slice(0, 5).join(" ") + "…";
+  b.onclick = () => { $("idea").value = t; $("idea").focus(); };
+  $("examples").appendChild(b);
+});
+
+// The desktop app opens this page with ?token=; the viewer and settings need it for the machines.
+const token = new URLSearchParams(location.search).get("token");
+try { if (token) sessionStorage.setItem("forge-token", token); } catch {}
+
+fetch("/api/status").then((r) => r.json()).then((s) => {
+  const mv = s.models.local, cl = s.models.claude;
+  const parts = [mv.available ? `Local model ready (${mv.model})` : `Local model ${mv.model} not found at ${mv.url} - run: ollama pull ${mv.model}`];
+  if (cl.available) parts.push("Claude is available");
+  parts.push(s.compiler ? "firmware will be compiled" : "PlatformIO not installed - firmware ships as source");
+  $("mode").textContent = parts.join(" · ");
+  if (s.desktop) loadSettings();
+});
+
+// Desktop only: model and machine settings, stored by the app.
+const auth = () => ({ "Content-Type": "application/json", "X-Forge-Token": sessionStorage.getItem("forge-token") || "" });
+async function loadSettings() {
+  const r = await fetch("/api/settings", { headers: auth() });
+  if (!r.ok) return;
+  const s = await r.json();
+  $("settings").hidden = false;
+  for (const el of $("settings-form").elements) {
+    if (!el.name) continue;
+    const [a, b] = el.name.split(".");
+    const v = b ? s[a]?.[b] : s[a];
+    if (el.type === "checkbox") el.checked = !!v; else el.value = v ?? "";
+  }
+}
+$("settings-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const body = { printer: {} };
+  for (const el of e.target.elements) {
+    if (!el.name) continue;
+    const [a, b] = el.name.split(".");
+    const v = el.type === "checkbox" ? el.checked : el.value.trim();
+    if (b) body[a][b] = v; else body[a] = v;
+  }
+  const r = await fetch("/api/settings", { method: "POST", headers: auth(), body: JSON.stringify(body) });
+  $("settings-saved").textContent = r.ok ? "Saved." : "Could not save.";
+};
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+$("go").onclick = async () => {
+  const idea = $("idea").value.trim();
+  if (!idea) { $("idea").focus(); return; }
+  $("go").disabled = true; $("go").textContent = "Building…"; $("err").hidden = true;
+  const progress = $("progress");
+  progress.hidden = false; progress.textContent = "";
+  try {
+    const r = await fetch("/api/build", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idea, provider: $("provider").value }) });
+    const start = await r.json();
+    if (!r.ok) throw new Error(start.detail || r.statusText);
+    let since = 0;
+    for (;;) {
+      await sleep(700);
+      const j = await (await fetch(`/api/jobs/${start.job}?since=${since}`)).json();
+      since = j.next ?? since;
+      for (const line of j.log || []) progress.textContent += `${line.t.toFixed(1)}s  ${line.msg}\n`;
+      progress.scrollTop = progress.scrollHeight;
+      if (j.state === "failed") throw new Error(j.error);
+      if (j.state === "done") { render(j.result); break; }
+    }
+  } catch (e) {
+    $("err").textContent = e.message; $("err").hidden = false;
+  } finally {
+    $("go").disabled = false; $("go").textContent = "Build it";
+  }
+};
+
+function render(data) {
+  const d = data.design, b = d.budget;
+  $("out").hidden = false;
+  $("name").textContent = d.name;
+  $("summary").textContent = d.summary;
+  $("zip").href = `/api/build/${data.id}.vbuild`;
+  $("viewer").src = `/viewer?build=${data.id}&embed=1`;
+  const stats = [
+    [d.board.name.replace("Espressif ", ""), "board"],
+    [`$${data.bom_total.toFixed(2)}`, "parts cost"],
+    [`${b.total_peak_ma} mA`, `peak, from ${b.source}`],
+    b.battery_hours !== undefined ? [`~${Math.round(b.battery_hours)} h`, "battery estimate"] : null,
+    [d.ok ? "Pass" : "Fail", "electrical checks"],
+  ].filter(Boolean);
+  $("stats").innerHTML = stats.map(([v, l]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("");
+  $("issues").innerHTML = d.issues.map((i) => `<div class="issue ${i.severity}">${esc(i.message)}</div>`).join("");
+  const plan = data.plan, extra = [];
+  if (plan.out_of_scope?.length) extra.push(["Not covered", plan.out_of_scope]);
+  if (plan.assumptions?.length) extra.push(["Assumptions", plan.assumptions]);
+  if (d.behavior?.length) extra.push(["Firmware behaviour", d.behavior]);
+  if (data.firmware_notes?.length) extra.push(["Firmware notes", data.firmware_notes]);
+  $("notes").innerHTML = extra.map(([h, xs]) =>
+    `<h2 style="margin-top:16px">${h}</h2><ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`).join("");
+
+  const pins = Object.fromEntries(d.instances.map((i) => [i.ref, i]));
+  $("bom").innerHTML = "<tr><th>Ref</th><th>Part</th><th>Why</th><th>Pins</th><th>Qty</th><th>Each</th></tr>" +
+    data.bom.map((r) => {
+      const inst = pins[r.ref];
+      const p = inst ? Object.entries(inst.pins).map(([s, g]) => `${s}→GPIO${g}`).join(", ") + (inst.address ? ` @${inst.address}` : "") : "";
+      return `<tr><td>${esc(r.ref)}</td><td>${esc(r.part)}${inst?.auto ? '<span class="tag">auto</span>' : ""}</td>` +
+        `<td class="muted">${esc(r.why)}</td><td><code>${esc(p)}</code></td><td class="num">${r.qty}</td>` +
+        `<td class="num">$${r.unit_usd.toFixed(2)}</td></tr>`;
+    }).join("");
+  $("wires").innerHTML = "<tr><th>From</th><th>To</th><th>Note</th></tr>" +
+    d.wires.map((w) => `<tr><td><code>${esc(w.from)}</code></td><td><code>${esc(w.to)}</code></td><td class="muted">${esc(w.note)}</td></tr>`).join("");
+
+  const names = Object.keys(data.files);
+  $("tabs").innerHTML = "";
+  names.forEach((n, k) => {
+    const t = document.createElement("button");
+    t.textContent = n;
+    t.onclick = () => { [...$("tabs").children].forEach((c) => c.classList.remove("on")); t.classList.add("on"); $("file").textContent = data.files[n]; };
+    $("tabs").appendChild(t);
+    if (n === "firmware/src/main.cpp" || (k === 0 && !names.includes("firmware/src/main.cpp"))) t.click();
+  });
+  $("out").scrollIntoView({ behavior: "smooth" });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forge Viewer</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1c1a; --muted: #6b6860; --line: #e3e0d8;
+  --accent: #c2410c; --accent-ink: #ffffff; --stage: #e9e6df; --code: #f1efe9;
+  --ok: #15803d; --err: #b91c1c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161514; --panel: #1f1e1c; --ink: #ece9e2; --muted: #9c988e; --line: #34322e;
+    --accent: #f97316; --accent-ink: #1b1005; --stage: #1a1917; --code: #262522;
+    --ok: #4ade80; --err: #f87171;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; display: flex; flex-direction: column; }
+header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+header h1 { font-size: 17px; margin: 0; }
+header .sub { color: var(--muted); font-size: 13px; }
+header .right { margin-left: auto; display: flex; gap: 8px; }
+body.embed header { display: none; }
+button, .btn { font: inherit; font-weight: 600; border: 1px solid transparent; border-radius: 8px; padding: 7px 14px; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); text-decoration: none; display: inline-block; font-size: 14px; }
+button.ghost, .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); font-weight: 500; }
+button:disabled { opacity: .5; cursor: default; }
+main { flex: 1; display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
+#stage { position: relative; background: var(--stage); min-height: 320px; }
+#stage canvas { display: block; width: 100%; height: 100%; }
+#overlay { position: absolute; left: 16px; bottom: 16px; right: 16px; pointer-events: none; display: flex; justify-content: space-between; align-items: end; gap: 12px; }
+#caption { background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; max-width: 560px; }
+#caption b { display: block; }
+#caption span { color: var(--muted); font-size: 14px; }
+#badge { font-weight: 700; font-size: 13px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; white-space: nowrap; }
+#drop { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 24px; }
+#drop.over { outline: 3px dashed var(--accent); outline-offset: -16px; }
+#drop p { color: var(--muted); margin: 0; max-width: 420px; }
+aside { border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+.controls { display: flex; gap: 6px; padding: 12px; border-bottom: 1px solid var(--line); }
+.controls button { flex: 1; padding: 7px 0; }
+ol { list-style: none; margin: 0; padding: 6px; overflow: auto; flex: 1; }
+ol li { padding: 8px 10px; border-radius: 8px; cursor: pointer; display: flex; gap: 10px; font-size: 14px; }
+ol li .n { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 18px; }
+ol li.done .n { color: var(--ok); }
+ol li.cur { background: var(--code); font-weight: 600; }
+ol li:hover { background: var(--code); }
+.machines { border-top: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.machines h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0; }
+.machines .row { display: flex; gap: 6px; flex-wrap: wrap; }
+.machines select { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.machines pre { margin: 0; max-height: 140px; overflow: auto; background: var(--code); border-radius: 8px; padding: 8px; font-size: 12px; white-space: pre-wrap; }
+.machines .hint { color: var(--muted); font-size: 13px; margin: 0; }
+.ok { color: var(--ok); } .err { color: var(--err); }
+@media (max-width: 800px) {
+  main { grid-template-columns: 1fr; grid-template-rows: 55vh auto; }
+  aside { border-left: 0; border-top: 1px solid var(--line); }
+  #overlay { left: 8px; right: 8px; bottom: 8px; }
+}
+</style>
+<script type="importmap">{ "imports": { "three": "/static/vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<header>
+  <h1 id="title">Forge Viewer</h1>
+  <span class="sub" id="sub">Open a .vbuild file to watch it being built.</span>
+  <div class="right">
+    <a class="btn ghost" href="/">New idea</a>
+    <button class="ghost" id="open">Open .vbuild</button>
+    <a class="btn" id="download" hidden>Download .vbuild</a>
+  </div>
+  <input type="file" id="file" accept=".vbuild,.zip" hidden>
+</header>
+<main>
+  <section id="stage">
+    <div id="drop">
+      <b>Drop a .vbuild file here</b>
+      <p>A .vbuild holds a device designed by Forge: its 3D model, the enclosure for your printer and the firmware for your board.</p>
+      <button id="open2">Choose a file</button>
+    </div>
+    <div id="overlay" hidden>
+      <div id="caption"><b id="cap-title"></b><span id="cap-text"></span></div>
+      <div id="badge"></div>
+    </div>
+  </section>
+  <aside>
+    <div class="controls">
+      <button class="ghost" id="prev" title="Previous step" aria-label="Previous step">&#9664;</button>
+      <button id="play">Pause</button>
+      <button class="ghost" id="next" title="Next step" aria-label="Next step">&#9654;</button>
+      <button class="ghost" id="restart" title="Start again" aria-label="Start again">&#8634;</button>
+    </div>
+    <ol id="steps"></ol>
+    <div class="machines" id="machines" hidden></div>
+  </aside>
+</main>
+<script type="module" src="/static/viewer.js"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+# The Forge platform: the web app, and a local model served by Ollama next to it.
+#
+#   docker compose up -d
+#   docker compose exec ollama ollama pull llama3.2:3b   # once; or your own model, see models/README.md
+#   open http://localhost:8780
+services:
+  forge:
+    build: .
+    ports: ["8780:8780"]
+    environment:
+      FORGE_OLLAMA_URL: http://ollama:11434
+      FORGE_LOCAL_MODEL: llama3.2:3b
+      FORGE_MAX_JOBS: "2"
+      # ANTHROPIC_API_KEY: ...           # optional second model
+    volumes:
+      - platformio:/home/forge/.platformio
+    depends_on: [ollama]
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama:/root/.ollama
+      - ./models:/models:ro             # optional: your own GGUF and Modelfile
+    restart: unless-stopped
+    # With an NVIDIA GPU, uncomment:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+
+volumes:
+  platformio:
+  ollama:

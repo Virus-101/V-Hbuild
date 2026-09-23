@@ -1,0 +1,54 @@
+name: Desktop app
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements-desktop.txt pytest httpx
+      - run: pytest -q
+      - run: pyinstaller packaging/forge-desktop.spec --noconfirm
+      - name: Smoke-test the bundle
+        shell: pwsh
+        run: |
+          $p = Start-Process dist\Forge\Forge.exe -ArgumentList "--browser","--port","8799" -PassThru
+          $ok = $false
+          foreach ($i in 1..40) {
+            try { $s = Invoke-RestMethod http://127.0.0.1:8799/api/status; if ($s.desktop) { $ok = $true; break } } catch {}
+            Start-Sleep -Milliseconds 500
+          }
+          Stop-Process $p -Force
+          if (-not $ok) { throw "Forge.exe did not start its server" }
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          $version = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "0.0.${{ github.run_number }}" }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" packaging\forge.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ForgeSetup-windows
+          path: dist/ForgeSetup-*.exe
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements-desktop.txt
+      - run: pyinstaller packaging/forge-desktop.spec --noconfirm
+      - run: cd dist && zip -qr Forge-macos.zip Forge
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Forge-macos
+          path: dist/Forge-macos.zip
