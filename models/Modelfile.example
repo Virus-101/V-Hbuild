@@ -1,6 +1,6 @@
-# Using your own GGUF with Forge. Copy it here (GGUF files are git-ignored), then:
+# Using your own GGUF with V-Hbuild. Copy it here (GGUF files are git-ignored), then:
 #   ollama create my-model -f models/Modelfile.example
-#   set FORGE_LOCAL_MODEL=my-model:latest   (or pick it in the desktop app's Settings)
+#   set VHBUILD_LOCAL_MODEL=my-model:latest   (or pick it in the desktop app's Settings)
 FROM ./my-model.gguf
 
 # Planning is structured output: keep sampling cool and the context wide

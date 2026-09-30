@@ -1,2 +1,2 @@
-# The viewer asks /api/status whether a Forge server is behind it; on this site none is.
+# The viewer asks /api/status whether a V-Hbuild server is behind it; on this site none is.
 /api/status  /api-status.json  200

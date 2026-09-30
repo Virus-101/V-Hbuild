@@ -1,12 +1,12 @@
-"""Forge desktop app.
+"""V-Hbuild desktop app.
 
-    python -m forge.desktop                 open Forge
-    python -m forge.desktop device.vbuild   open a file straight into the viewer
+    python -m vhbuild.desktop                 open V-Hbuild
+    python -m vhbuild.desktop device.vbuild   open a file straight into the viewer
                                             (what double-clicking a .vbuild runs)
 
 Runs the same server as the platform, but on 127.0.0.1 at a free port with a
 per-launch token, and with the machine endpoints switched on - this is the
-copy of Forge that can reach the person's printer and USB ports. The window
+copy of V-Hbuild that can reach the person's printer and USB ports. The window
 is a native webview (pywebview); without one, the system browser is used.
 """
 import argparse
@@ -34,13 +34,13 @@ def _wait(url: str, timeout: float = 20) -> None:
             return
         except OSError:
             time.sleep(0.1)
-    raise RuntimeError("The Forge server did not start.")
+    raise RuntimeError("The V-Hbuild server did not start.")
 
 
 def start_server(token: str, port: int):
     import uvicorn
 
-    from forge import machines, web
+    from vhbuild import machines, web
     web.DESKTOP_TOKEN = token
     web.apply_settings(machines.load_settings())
     config = uvicorn.Config(web.app, host="127.0.0.1", port=port, log_level="warning")
@@ -52,7 +52,7 @@ def start_server(token: str, port: int):
 
 def open_path(path: Path) -> str:
     """Load a .vbuild from disk into the running server; returns its build id."""
-    from forge import vbuild, web
+    from vhbuild import vbuild, web
     data = path.read_bytes()
     man, files = vbuild.read(data)
     return web._remember({"manifest": man, "files": files, "data": data, "filename": path.name})
@@ -63,8 +63,8 @@ def _log_to_file() -> None:
     crash it. Send everything to a log file next to the settings instead."""
     if sys.stdout is not None and sys.stderr is not None:
         return
-    from forge import machines
-    path = machines.settings_path().with_name("forge.log")
+    from vhbuild import machines
+    path = machines.settings_path().with_name("vhbuild.log")
     path.parent.mkdir(parents=True, exist_ok=True)
     stream = open(path, "a", buffering=1, encoding="utf-8")
     sys.stdout = sys.stdout or stream
@@ -73,7 +73,7 @@ def _log_to_file() -> None:
 
 def main(argv=None) -> int:
     _log_to_file()
-    ap = argparse.ArgumentParser(prog="forge-desktop")
+    ap = argparse.ArgumentParser(prog="vhbuild-desktop")
     ap.add_argument("file", nargs="?", help="a .vbuild to open")
     ap.add_argument("--browser", action="store_true", help="use the system browser instead of a window")
     ap.add_argument("--port", type=int, default=0, help="fixed local port (default: any free one)")
@@ -96,12 +96,12 @@ def main(argv=None) -> int:
         except ImportError:
             webview = None
     if webview is not None:
-        webview.create_window("Forge", url, width=1320, height=880, min_size=(900, 600))
+        webview.create_window("V-Hbuild", url, width=1320, height=880, min_size=(900, 600))
         webview.start()
     else:
         import webbrowser
         webbrowser.open(url)
-        print(f"Forge is running at {base} - close this window to quit.", flush=True)
+        print(f"V-Hbuild is running at {base} - close this window to quit.", flush=True)
         try:
             while True:
                 time.sleep(3600)

@@ -31,4 +31,4 @@ jobs:
       - run: pip install -r requirements-dev.txt platformio
       - run: pytest -q -k real_compile
         env:
-          FORGE_TEST_COMPILE: "1"
+          VHBUILD_TEST_COMPILE: "1"

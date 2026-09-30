@@ -1,5 +1,5 @@
-# The Forge website: landing page, example builds and the in-browser 3D viewer.
-# The Forge app itself (Python, PlatformIO, a local model) does not run here.
+# The V-Hbuild website: landing page, example builds and the in-browser 3D viewer.
+# The V-Hbuild app itself (Python, PlatformIO, a local model) does not run here.
 [build]
   command = "python3 scripts/build_site.py"
   publish = "site-dist"
@@ -9,8 +9,10 @@
   [headers.values]
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    # The viewer is a module script with an import map; everything it loads is from this site.
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    # Scripts may only come from the site's own /static/ folder (plus the viewer's inline
+    # import map). That also keeps out the badge script Netlify injects into every page
+    # (/.netlify/scripts/hud). Add a custom domain's /static/ here if you add one.
+    Content-Security-Policy = "default-src 'self'; script-src 'unsafe-inline' https://v-hbuild.netlify.app/static/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
 
 [[headers]]
   for = "/samples/*"

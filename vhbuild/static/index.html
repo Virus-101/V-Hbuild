@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
-<title>Forge</title>
+<title>V-Hbuild</title>
 <style>
 :root {
   --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1c1a; --muted: #6b6860; --line: #e3e0d8;
@@ -73,7 +73,7 @@ ul { margin: 0; padding-left: 20px; }
 </head>
 <body>
 <main>
-  <h1>Forge</h1>
+  <h1>V-Hbuild</h1>
   <p class="sub">Describe a device. Watch it get built, then send it to your printer and your board.</p>
 
   <section class="panel">
@@ -173,7 +173,7 @@ EXAMPLES.forEach((t) => {
 
 // The desktop app opens this page with ?token=; the viewer and settings need it for the machines.
 const token = new URLSearchParams(location.search).get("token");
-try { if (token) sessionStorage.setItem("forge-token", token); } catch {}
+try { if (token) sessionStorage.setItem("vhbuild-token", token); } catch {}
 
 fetch("/api/status").then((r) => r.json()).then((s) => {
   const mv = s.models.local, cl = s.models.claude;
@@ -185,7 +185,7 @@ fetch("/api/status").then((r) => r.json()).then((s) => {
 });
 
 // Desktop only: model and machine settings, stored by the app.
-const auth = () => ({ "Content-Type": "application/json", "X-Forge-Token": sessionStorage.getItem("forge-token") || "" });
+const auth = () => ({ "Content-Type": "application/json", "X-VHbuild-Token": sessionStorage.getItem("vhbuild-token") || "" });
 async function loadSettings() {
   const r = await fetch("/api/settings", { headers: auth() });
   if (!r.ok) return;

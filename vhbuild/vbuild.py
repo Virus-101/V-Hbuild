@@ -144,7 +144,7 @@ def manifest(result: dict, d: Design, b: Box, glb_nodes: set[str], files: dict[s
         "format": FORMAT, "version": VERSION,
         "name": d.name, "summary": d.summary, "idea": result["idea"],
         "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "generator": f"Forge {__version__}", "planner": result["planner"],
+        "generator": f"V-Hbuild {__version__}", "planner": result["planner"],
         "units": "mm", "up": "z",
         "ok": d.ok, "issues": [i.as_dict() for i in d.issues],
         "board": {"id": board.id, "name": board.name, "chip": board.chip},
@@ -200,7 +200,7 @@ def read(data: bytes) -> tuple[dict, dict[str, bytes]]:
     if man.get("format") != FORMAT:
         raise VbuildError("manifest.json is not a vbuild manifest.")
     if not isinstance(man.get("version"), int) or man["version"] > VERSION:
-        raise VbuildError(f"This file needs a newer Forge (format version {man.get('version')}).")
+        raise VbuildError(f"This file needs a newer V-Hbuild (format version {man.get('version')}).")
     for path, digest in (man.get("files") or {}).items():
         if path not in files:
             raise VbuildError(f"{path} is listed but missing.")

@@ -1,4 +1,4 @@
-// Forge viewer: plays a .vbuild's assembly steps over its 3D model.
+// V-Hbuild viewer: plays a .vbuild's assembly steps over its 3D model.
 //
 // The GLB has one node per part (named by ref, plus "shell" and "lid"); the
 // manifest says which step reveals which node and wire. Each step animates:
@@ -16,7 +16,7 @@ if (params.get("embed")) document.body.classList.add("embed");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 let token = params.get("token") || "";
-try { if (token) sessionStorage.setItem("forge-token", token); else token = sessionStorage.getItem("forge-token") || ""; } catch {}
+try { if (token) sessionStorage.setItem("vhbuild-token", token); else token = sessionStorage.getItem("vhbuild-token") || ""; } catch {}
 
 const DURATION = { print: 3.0, flash: 2.6, close: 1.4, default: 1.6 };
 const HOLD = 0.9;   // seconds to rest on a finished step while playing
@@ -99,8 +99,8 @@ async function show(manifest, fileMap) {
   $("drop").hidden = true;
   $("overlay").hidden = false;
   $("title").textContent = man.name;
-  $("sub").textContent = `${man.board?.name || ""} · planned by ${man.planner || "Forge"}`;
-  document.title = `${man.name} · Forge`;
+  $("sub").textContent = `${man.board?.name || ""} · planned by ${man.planner || "V-Hbuild"}`;
+  document.title = `${man.name} · V-Hbuild`;
 
   const glb = files[man.model];
   if (!glb) throw new Error("This .vbuild has no 3D model.");
@@ -259,7 +259,7 @@ $("restart").onclick = () => { if (man) { go(0); setPlaying(true); } };
 let status = { desktop: false };
 
 async function api(path, opts = {}) {
-  const r = await fetch(path, { ...opts, headers: { "Content-Type": "application/json", "X-Forge-Token": token, ...(opts.headers || {}) } });
+  const r = await fetch(path, { ...opts, headers: { "Content-Type": "application/json", "X-VHbuild-Token": token, ...(opts.headers || {}) } });
   const data = await r.json().catch(() => ({}));
   if (!r.ok && data.log === undefined) throw new Error(data.detail || r.statusText);
   return data;
@@ -274,9 +274,9 @@ async function renderMachines() {
   const fw = board.file;
   if (!status.desktop) {
     // Downloads come straight out of the loaded file, so this works on a
-    // static host with no Forge server behind it.
+    // static host with no V-Hbuild server behind it.
     box.innerHTML = `<h2>Your machines</h2><div class="row" id="m-files"></div>
-      <p class="hint">Open this .vbuild in the Forge desktop app to print the enclosure and flash the board directly.</p>`;
+      <p class="hint">Open this .vbuild in the V-Hbuild desktop app to print the enclosure and flash the board directly.</p>`;
     const add = (p, label) => {
       if (!files[p]) return;
       const a = document.createElement("a");
@@ -368,7 +368,7 @@ stage.addEventListener("drop", (e) => {
 (async () => {
   resize();
   status = await fetch("/api/status").then((r) => r.json()).catch(() => ({ desktop: false, static: true }));
-  if (status.static) $("home").textContent = "Forge home";   // no Forge server: the link goes to the site
+  if (status.static) $("home").textContent = "V-Hbuild home";   // no V-Hbuild server: the link goes to the site
   const src = params.get("src");
   if (src && !buildId) {
     // Only files from this same site: the viewer is not a proxy for arbitrary URLs.
@@ -400,4 +400,4 @@ stage.addEventListener("drop", (e) => {
   }
 })();
 
-window.forgeViewer = { go: (i) => go(i, true), pause: () => setPlaying(false), state: () => ({ cur, t, steps: man?.steps.length }) };
+window.vhbuildViewer = { go: (i) => go(i, true), pause: () => setPlaying(false), state: () => ({ cur, t, steps: man?.steps.length }) };

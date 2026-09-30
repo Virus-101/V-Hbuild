@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Forge — describe a device, watch it get built</title>
-<meta name="description" content="Forge turns a one-sentence device idea into parts, wiring, compiled firmware and a printable enclosure, then shows it being built in 3D. Open source, runs on your own machine.">
-<meta property="og:title" content="Forge — describe a device, watch it get built">
+<title>V-Hbuild — describe a device, watch it get built</title>
+<meta name="description" content="V-Hbuild turns a one-sentence device idea into parts, wiring, compiled firmware and a printable enclosure, then shows it being built in 3D. Open source, runs on your own machine.">
+<meta property="og:title" content="V-Hbuild — describe a device, watch it get built">
 <meta property="og:description" content="Parts, wiring, compiled firmware and a printable enclosure from one sentence. Open source; plans with a local AI model.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23c2410c'/><path d='M9 10h14v3H13v3h8v3h-8v6H9z' fill='white'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23c2410c'/><path d='M7 8h4.2l4.8 12.5L20.8 8H25l-7 17h-4z' fill='white'/></svg>">
 <style>
 :root {
   --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1c1a; --muted: #6b6860; --line: #e3e0d8;
@@ -64,7 +64,7 @@ footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top:
 <body>
 <div class="wrap">
   <nav>
-    <a class="brand" href="/">Forge</a>
+    <a class="brand" href="/">V-Hbuild</a>
     <div class="links">
       <a href="viewer.html">Viewer</a>
       <a class="hide-sm" href="#how">How it works</a>
@@ -74,7 +74,7 @@ footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top:
 
   <header class="hero">
     <h1>Describe a device. Watch it get built.</h1>
-    <p>Forge turns one sentence into the parts list, the wiring, compiled firmware and a
+    <p>V-Hbuild turns one sentence into the parts list, the wiring, compiled firmware and a
       3D-printable enclosure, then plays the build in 3D. The desktop app sends the enclosure to
       your printer and flashes the firmware onto your board.</p>
     <div class="cta">
@@ -88,7 +88,7 @@ footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top:
 <section>
   <div class="wrap">
     <h2>Watch these get built</h2>
-    <p class="lead">Each example is a real <code>.vbuild</code> file Forge produced, with compiled firmware and
+    <p class="lead">Each example is a real <code>.vbuild</code> file V-Hbuild produced, with compiled firmware and
       print-ready enclosure files inside. They play right here in your browser.</p>
     <div class="grid samples">
       <div class="card">
@@ -124,7 +124,7 @@ footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top:
       <div class="card"><div class="n">2 · Engineer</div><h3>Code does the electronics</h3>
         <p>Pins, I2C addresses, power budget, resistors and level shifting. Bad plans go back to the model with the reasons.</p></div>
       <div class="card"><div class="n">3 · Program</div><h3>Rules become firmware</h3>
-        <p>The model describes behaviour as rules; Forge writes the C++ and compiles it for an ESP32 or a Pico W.</p></div>
+        <p>The model describes behaviour as rules; V-Hbuild writes the C++ and compiles it for an ESP32 or a Pico W.</p></div>
       <div class="card"><div class="n">4 · Build</div><h3>One file for every machine</h3>
         <p>The <code>.vbuild</code> holds the 3D build, a 3MF for your slicer and the firmware image for your board.</p></div>
     </div>
@@ -142,7 +142,7 @@ footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top:
       </ul>
       <p>Or run it from source:</p>
       <pre>pip install -r requirements.txt
-python -m forge.desktop</pre>
+python -m vhbuild.desktop</pre>
     </div>
     <div>
       <h2>Honest limits</h2>
@@ -150,14 +150,14 @@ python -m forge.desktop</pre>
         <li>A small catalog: 3 boards and 16 modules.</li>
         <li>Ready-made modules and jumper wires, not custom circuit boards.</li>
         <li>A simple rectangular enclosure; check the fit before a long print.</li>
-        <li>Early software (v0.2). Contributions welcome, especially new parts.</li>
+        <li>Early software (v0.3). Contributions welcome, especially new parts.</li>
       </ul>
     </div>
   </div>
 </section>
 
 <footer>
-  <div class="wrap">Forge is open source under the MIT license ·
+  <div class="wrap">V-Hbuild is open source under the MIT license ·
     <a href="https://github.com/Virus-101/V-Hbuild">Source on GitHub</a> ·
     <a href="https://github.com/Virus-101/V-Hbuild/blob/main/CHANGELOG.md">Changelog</a></div>
 </footer>

@@ -7,7 +7,7 @@ existing program or machine already reads.
 
 | Path | Format | Read by |
 | --- | --- | --- |
-| `manifest.json` | JSON (below) | the Forge viewer, the desktop app |
+| `manifest.json` | JSON (below) | the V-Hbuild viewer, the desktop app |
 | `model/assembly.glb` | glTF 2.0 binary | the viewer; any 3D tool (Blender, Windows 3D Viewer) |
 | `enclosure/print_plate.3mf` | 3MF | every mainstream slicer (PrusaSlicer, Orca, Bambu Studio, Cura) |
 | `enclosure/shell.stl`, `lid.stl` | binary STL | any slicer |
@@ -35,7 +35,7 @@ model lying on its back, so set the camera's up vector to +z.
   "name": "Desk Light Glows",
   "summary": "…", "idea": "the person's own words",
   "created": "2026-09-23T14:31:00Z",
-  "generator": "Forge 0.2.0", "planner": "local model (llama3.2:3b)",
+  "generator": "V-Hbuild 0.3.0", "planner": "local model (llama3.2:3b)",
   "units": "mm", "up": "z",
   "ok": true,                    // passed every electrical check
   "issues": [{"severity": "info|warning|error", "message": "…", "replan": false}],
@@ -79,7 +79,7 @@ model lying on its back, so set the camera's up vector to +z.
 
 ## Reading one safely
 
-`forge.vbuild.read()` is the reference reader. It rejects:
+`vhbuild.vbuild.read()` is the reference reader. It rejects:
 
 - archives without a `manifest.json`, or a manifest whose `format` is not `vbuild`
 - a `version` newer than it understands

@@ -1,4 +1,4 @@
-"""python -m forge "a plant monitor that waters itself" [-o out/] [--provider local|claude|offline]
+"""python -m vhbuild "a plant monitor that waters itself" [-o out/] [--provider local|claude|offline]
 
 Writes <name>.vbuild into the output folder, and the same files unpacked
 next to it so they can be opened directly.
@@ -12,9 +12,9 @@ from .llm import ProviderError
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="forge", description="Turn a device idea into a .vbuild project.")
+    ap = argparse.ArgumentParser(prog="vhbuild", description="Turn a device idea into a .vbuild project.")
     ap.add_argument("idea", help="what the device should do, in plain words")
-    ap.add_argument("-o", "--out", default="forge-out", help="output directory (default: forge-out)")
+    ap.add_argument("-o", "--out", default="vhbuild-out", help="output directory (default: vhbuild-out)")
     ap.add_argument("--provider", default="auto", choices=["auto", "local", "claude", "offline"],
                     help="which model plans the device (default: the local model when Ollama serves it)")
     ap.add_argument("--offline", action="store_true", help="same as --provider offline")
@@ -27,7 +27,7 @@ def main(argv=None) -> int:
                               compile_firmware=False if args.no_compile else None,
                               log=lambda m: print(m, file=sys.stderr))
     except (ProviderError, ValueError) as e:
-        print(f"forge: {e}", file=sys.stderr)
+        print(f"vhbuild: {e}", file=sys.stderr)
         return 2
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)

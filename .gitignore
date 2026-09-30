@@ -4,7 +4,7 @@ __pycache__/
 venv/
 .env
 .DS_Store
-forge-out/
+vhbuild-out/
 .pio/
 .pytest_cache/
 *.gguf

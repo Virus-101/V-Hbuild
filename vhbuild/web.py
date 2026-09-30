@@ -1,6 +1,6 @@
-"""Forge server - the platform, and the engine behind the desktop app.
+"""V-Hbuild server - the platform, and the engine behind the desktop app.
 
-    python -m uvicorn forge.web:app --host 127.0.0.1 --port 8780
+    python -m uvicorn vhbuild.web:app --host 127.0.0.1 --port 8780
 
 Builds run as background jobs (a local model on a CPU can take a minute or two,
 compiling another half minute), and the page polls their log.
@@ -28,18 +28,18 @@ from . import __version__
 from . import compile as fwcompile
 from . import llm, machines, pipeline, vbuild
 
-app = FastAPI(title="Forge")
+app = FastAPI(title="V-Hbuild")
 STATIC = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 KEEP = 50
-MAX_JOBS = int(os.environ.get("FORGE_MAX_JOBS", "2"))
+MAX_JOBS = int(os.environ.get("VHBUILD_MAX_JOBS", "2"))
 # Builds waiting for a slot; past this a new build gets "busy" rather than a thread.
-MAX_QUEUED = int(os.environ.get("FORGE_MAX_QUEUED", "20"))
+MAX_QUEUED = int(os.environ.get("VHBUILD_MAX_QUEUED", "20"))
 # A generated .vbuild is a few hundred KB; uploads are capped well below the
 # format's own limit so a public server cannot be filled from outside.
-MAX_UPLOAD = int(os.environ.get("FORGE_MAX_UPLOAD_MB", "32")) * 1024 * 1024
-MAX_HELD = int(os.environ.get("FORGE_MAX_HELD_MB", "512")) * 1024 * 1024
+MAX_UPLOAD = int(os.environ.get("VHBUILD_MAX_UPLOAD_MB", "32")) * 1024 * 1024
+MAX_HELD = int(os.environ.get("VHBUILD_MAX_HELD_MB", "512")) * 1024 * 1024
 DESKTOP_TOKEN: str | None = None        # set by desktop.py
 
 builds: "OrderedDict[str, dict]" = OrderedDict()    # id -> {"manifest", "files", "result"?}
@@ -115,10 +115,10 @@ def _run_job(job_id: str, idea: str, provider: str) -> None:
 def _training_example(idea: str, result: dict) -> None:
     """Keep plans that passed the engine as idea -> plan examples for fine-tuning a local model.
 
-    Off unless FORGE_TRAINING_LOG names a file. Plans from a stronger model
+    Off unless VHBUILD_TRAINING_LOG names a file. Plans from a stronger model
     (Claude) that the engine accepted are the most useful ones to learn from.
     """
-    path = os.environ.get("FORGE_TRAINING_LOG")
+    path = os.environ.get("VHBUILD_TRAINING_LOG")
     if not path or not result["design"]["ok"] or result["planner"].startswith("offline"):
         return
     line = json.dumps({"idea": idea, "plan": result["plan"], "planner": result["planner"],
@@ -141,7 +141,7 @@ def build(body: dict = Body(...)):
     with _lock:
         waiting = sum(1 for j in jobs.values() if j["state"] in ("queued", "running"))
         if waiting >= MAX_JOBS + MAX_QUEUED:
-            raise HTTPException(429, "Forge is busy with other builds. Try again in a minute.")
+            raise HTTPException(429, "V-Hbuild is busy with other builds. Try again in a minute.")
         jobs[job_id] = {"state": "queued", "log": [], "started": time.time()}
         while len(jobs) > KEEP:
             jobs.popitem(last=False)
@@ -167,7 +167,7 @@ def job(job_id: str, since: int = 0):
 @app.get("/api/build/{build_id}.vbuild")
 def download(build_id: str):
     entry = _get(build_id)
-    return Response(entry["data"], media_type="application/vnd.forge.vbuild+zip",
+    return Response(entry["data"], media_type="application/vnd.vhbuild.vbuild+zip",
                     headers={"Content-Disposition": f'attachment; filename="{entry["filename"]}"'})
 
 
@@ -206,9 +206,9 @@ async def upload(request: Request):
 # --- machines (desktop only) ---------------------------------------------------
 
 def _desktop(request: Request) -> None:
-    token = request.headers.get("x-forge-token", "")
+    token = request.headers.get("x-vhbuild-token", "")
     if DESKTOP_TOKEN is None:
-        raise HTTPException(404, "Machines are only available in the Forge desktop app.")
+        raise HTTPException(404, "Machines are only available in the V-Hbuild desktop app.")
     if not hmac.compare_digest(token, DESKTOP_TOKEN):
         raise HTTPException(403, "Missing or wrong desktop token.")
 
@@ -270,6 +270,6 @@ def set_settings(request: Request, body: dict = Body(...)):
 
 def apply_settings(s: dict) -> None:
     """Model choices live in settings.json on the desktop; the pipeline reads env."""
-    os.environ["FORGE_PROVIDER"] = s.get("provider") or "auto"
-    os.environ["FORGE_OLLAMA_URL"] = s.get("ollama_url") or "http://localhost:11434"
-    os.environ["FORGE_LOCAL_MODEL"] = s.get("local_model") or "llama3.2:3b"
+    os.environ["VHBUILD_PROVIDER"] = s.get("provider") or "auto"
+    os.environ["VHBUILD_OLLAMA_URL"] = s.get("ollama_url") or "http://localhost:11434"
+    os.environ["VHBUILD_LOCAL_MODEL"] = s.get("local_model") or "llama3.2:3b"

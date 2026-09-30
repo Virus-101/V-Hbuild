@@ -1,4 +1,4 @@
-"""Forge: engine rules, offline pipeline, and the Claude path with a fake client."""
+"""V-Hbuild: engine rules, offline pipeline, and the Claude path with a fake client."""
 import io
 import json
 import zipfile
@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from forge import engine, enclosure, firmware, pipeline, planner
-from forge.catalog import BOARDS, PARTS
+from vhbuild import engine, enclosure, firmware, pipeline, planner
+from vhbuild.catalog import BOARDS, PARTS
 
 
 def plan(*part_ids, board="esp32-c3-devkitm-1", power="usb", low_power=False):
@@ -222,7 +222,7 @@ def test_rules_become_code_in_the_skeleton():
     assert "if (s1_pct < 35) { m2_set(true); delay(3000); m2_set(false); " in cpp
     assert 'ds1.print("Watered \\"now\\""); ds1.println(); ds1.display();' in cpp   # escaped C
     assert cpp.index("RULE1_EVERY_MS =") < cpp.index("void setup") < cpp.index("rule1Last = millis()")
-    assert "FORGE:" not in cpp and r["model_notes"] == ["35% is a starting point"]
+    assert "VHBUILD:" not in cpp and r["model_notes"] == ["35% is a starting point"]
     assert "## Notes from the model" in r["files"]["README.md"]
     assert "s1_pct" in fake.calls[1]["user"] and "M2.switch_on_for" in fake.calls[1]["user"]
 
@@ -262,7 +262,7 @@ def test_messages_print_live_values_and_numbers_are_not_conditions():
 
 
 def test_firmware_that_does_not_compile_falls_back_to_the_skeleton(monkeypatch):
-    from forge import compile as fwcompile
+    from vhbuild import compile as fwcompile
     good = as_plan(plan("button"))
     broken = rules({"every_seconds": 0, "variable": "always", "compare": "none", "threshold": 0,
                     "then": [{"do": "serial.print", "text": "hi"}]})
@@ -293,7 +293,7 @@ def plan_json(**over):
 
 
 def test_local_model_sends_a_flat_schema_with_catalog_enums():
-    from forge import llm
+    from vhbuild import llm
     sent = []
 
     def post(path, payload):
@@ -310,7 +310,7 @@ def test_local_model_sends_a_flat_schema_with_catalog_enums():
 
 
 def test_local_model_retries_once_with_the_validation_error():
-    from forge import llm
+    from vhbuild import llm
     replies = iter(['{"name": "x"}', plan_json()])
     seen = []
 
@@ -323,7 +323,7 @@ def test_local_model_retries_once_with_the_validation_error():
 
 
 def test_local_model_gives_up_after_two_bad_answers():
-    from forge import llm
+    from vhbuild import llm
     mv = llm.Local(post=lambda path, payload: {"message": {"content": "not json"}})
     with pytest.raises(llm.ProviderError):
         planner.llm_plan("idea", mv)
@@ -331,7 +331,7 @@ def test_local_model_gives_up_after_two_bad_answers():
 
 def test_local_model_falls_back_to_cpu_when_the_gpu_runner_dies():
     import urllib.error
-    from forge import llm
+    from vhbuild import llm
     payloads = []
 
     def post(path, payload):
@@ -344,7 +344,7 @@ def test_local_model_falls_back_to_cpu_when_the_gpu_runner_dies():
 
 
 def test_claude_provider_uses_structured_outputs_and_fallbacks():
-    from forge import llm
+    from vhbuild import llm
 
     class Client:
         def __init__(self):
@@ -360,8 +360,8 @@ def test_claude_provider_uses_structured_outputs_and_fallbacks():
 
 
 def test_choose_prefers_the_local_model_and_respects_offline(monkeypatch):
-    from forge import llm
-    monkeypatch.delenv("FORGE_OFFLINE", raising=False)
+    from vhbuild import llm
+    monkeypatch.delenv("VHBUILD_OFFLINE", raising=False)
     monkeypatch.setattr(llm.Local, "available", lambda self: True)
     assert isinstance(llm.choose(), llm.Local)
     assert llm.choose("offline") is None
@@ -373,7 +373,7 @@ def test_choose_prefers_the_local_model_and_respects_offline(monkeypatch):
 # --- geometry -------------------------------------------------------------------
 
 def test_meshes_are_watertight_and_the_glb_names_every_part():
-    from forge import geometry
+    from vhbuild import geometry
     d = engine.build(plan("ssd1306", "pir-hcsr501", "button", "sht31", "ds18b20"))
     g = geometry.build(d)
     assert g["watertight"] and g["volume_cm3"] > 10
@@ -383,7 +383,7 @@ def test_meshes_are_watertight_and_the_glb_names_every_part():
 
 def test_lid_holes_line_up_with_their_parts_after_the_flip():
     from manifold3d import Manifold
-    from forge import geometry
+    from vhbuild import geometry
     d = engine.build(plan("pir-hcsr501", "button", "sht31", "bh1750"))
     b = enclosure.box(d)
     placed_lid = geometry.lid_in_place(b, geometry.lid(b))
@@ -414,7 +414,7 @@ def offline(idea):
 
 
 def test_vbuild_round_trips_and_describes_its_machines():
-    from forge import vbuild
+    from vhbuild import vbuild
     r = offline("a motion alarm with a buzzer and a screen")
     man, files = vbuild.read(pipeline.bundle(r))
     assert man["format"] == "vbuild" and man["version"] == 1
@@ -429,7 +429,7 @@ def test_vbuild_round_trips_and_describes_its_machines():
 
 def test_vbuild_rejects_damage_and_unsafe_paths():
     import zipfile
-    from forge import vbuild
+    from vhbuild import vbuild
     data = pipeline.bundle(offline("a button"))
     z = zipfile.ZipFile(io.BytesIO(data))
     parts = {n: z.read(n) for n in z.namelist()}
@@ -455,7 +455,7 @@ def test_vbuild_rejects_damage_and_unsafe_paths():
 # --- machines -------------------------------------------------------------------
 
 def test_uf2_drive_is_found_and_flashed(tmp_path):
-    from forge import machines
+    from vhbuild import machines
     drive = tmp_path / "RPI-RP2"
     drive.mkdir()
     (drive / "INFO_UF2.TXT").write_text("UF2 Bootloader v3.0\nModel: Raspberry Pi RP2\nBoard-ID: RPI-RP2\n")
@@ -468,14 +468,14 @@ def test_uf2_drive_is_found_and_flashed(tmp_path):
 
 
 def test_flash_needs_compiled_firmware():
-    from forge import machines
+    from vhbuild import machines
     with pytest.raises(machines.MachineError, match="no compiled firmware"):
         machines.flash({"machines": {"board": {"file": None}}}, {}, "COM3")
 
 
 def test_esp32_flash_calls_esptool_with_the_merged_image(monkeypatch):
     import esptool
-    from forge import machines
+    from vhbuild import machines
     seen = {}
 
     def fake_main(argv):
@@ -524,7 +524,7 @@ def fake_slicer(tmp_path):
 
 
 def test_octoprint_and_moonraker_receive_sliced_gcode(printer_server, fake_slicer, monkeypatch):
-    from forge import machines
+    from vhbuild import machines
     url, got = printer_server
     real_run = machines.subprocess.run
     monkeypatch.setattr(machines.subprocess, "run",
@@ -541,7 +541,7 @@ def test_octoprint_and_moonraker_receive_sliced_gcode(printer_server, fake_slice
 
 
 def test_printer_folder_and_unreachable_printer(tmp_path):
-    from forge import machines
+    from vhbuild import machines
     msg = machines.send_to_printer("lamp", b"3mf", {"kind": "folder", "folder": str(tmp_path), "slicer": ""})
     assert (tmp_path / "lamp.3mf").read_bytes() == b"3mf" and "Saved" in msg
     with pytest.raises(machines.MachineError, match="No printer"):
@@ -549,8 +549,8 @@ def test_printer_folder_and_unreachable_printer(tmp_path):
 
 
 def test_settings_round_trip(tmp_path, monkeypatch):
-    from forge import machines
-    monkeypatch.setenv("FORGE_SETTINGS", str(tmp_path / "s.json"))
+    from vhbuild import machines
+    monkeypatch.setenv("VHBUILD_SETTINGS", str(tmp_path / "s.json"))
     assert machines.load_settings()["printer"]["kind"] == "none"
     machines.save_settings({"local_model": "qwen2.5:3b", "printer": {"kind": "moonraker", "bogus": 1}, "junk": 2})
     s = machines.load_settings()
@@ -572,8 +572,8 @@ def wait_job(c, job):
 
 def test_web_job_build_download_and_upload(monkeypatch):
     from fastapi.testclient import TestClient
-    from forge import compile as fwcompile
-    from forge import vbuild, web
+    from vhbuild import compile as fwcompile
+    from vhbuild import vbuild, web
     monkeypatch.setattr(fwcompile, "available", lambda: False)
     c = TestClient(web.app)
     assert c.get("/api/status").json()["desktop"] is False
@@ -596,33 +596,33 @@ def test_web_job_build_download_and_upload(monkeypatch):
 
 def test_machine_endpoints_are_desktop_only_and_need_the_token(monkeypatch, tmp_path):
     from fastapi.testclient import TestClient
-    from forge import web
-    monkeypatch.setenv("FORGE_SETTINGS", str(tmp_path / "s.json"))
+    from vhbuild import web
+    monkeypatch.setenv("VHBUILD_SETTINGS", str(tmp_path / "s.json"))
     c = TestClient(web.app)
     monkeypatch.setattr(web, "DESKTOP_TOKEN", None)
     assert c.get("/api/machines").status_code == 404
     monkeypatch.setattr(web, "DESKTOP_TOKEN", "secret")
     assert c.get("/api/machines").status_code == 403
-    assert c.get("/api/machines", headers={"X-Forge-Token": "wrong"}).status_code == 403
-    ok = c.get("/api/machines", headers={"X-Forge-Token": "secret"})
+    assert c.get("/api/machines", headers={"X-VHbuild-Token": "wrong"}).status_code == 403
+    ok = c.get("/api/machines", headers={"X-VHbuild-Token": "secret"})
     assert ok.status_code == 200 and set(ok.json()) == {"serial", "uf2", "printer"}
     assert c.post("/api/machines/flash", json={"build": "nope", "target": "x"},
-                  headers={"X-Forge-Token": "secret"}).status_code == 404
+                  headers={"X-VHbuild-Token": "secret"}).status_code == 404
 
 
 def test_desktop_opens_a_vbuild_from_disk(tmp_path):
-    from forge import desktop, web
+    from vhbuild import desktop, web
     path = tmp_path / "lamp.vbuild"
     path.write_bytes(pipeline.bundle(offline("a lamp with a button")))
     bid = desktop.open_path(path)
     assert web.builds[bid]["manifest"]["format"] == "vbuild"
 
 
-@pytest.mark.skipif(not __import__("os").environ.get("FORGE_TEST_COMPILE"),
-                    reason="set FORGE_TEST_COMPILE=1 (needs PlatformIO; slow the first time)")
+@pytest.mark.skipif(not __import__("os").environ.get("VHBUILD_TEST_COMPILE"),
+                    reason="set VHBUILD_TEST_COMPILE=1 (needs PlatformIO; slow the first time)")
 @pytest.mark.parametrize("board", ["esp32-c3-devkitm-1", "rpi-pico-w"])
 def test_real_compile_produces_a_flashable_image(board):
-    from forge import compile as fwcompile
+    from vhbuild import compile as fwcompile
     d = engine.build(plan("bme280", "button", "ssd1306", board=board))
     cpp, deps = firmware.skeleton(d)
     ini = firmware.platformio_ini(d, deps)
@@ -638,9 +638,9 @@ def test_real_compile_produces_a_flashable_image(board):
 
 
 def test_accepted_model_plans_are_logged_for_training(tmp_path, monkeypatch):
-    from forge import web
+    from vhbuild import web
     log = tmp_path / "train.jsonl"
-    monkeypatch.setenv("FORGE_TRAINING_LOG", str(log))
+    monkeypatch.setenv("VHBUILD_TRAINING_LOG", str(log))
     good = {"design": {"ok": True}, "planner": "Claude (claude-opus-5)", "plan": {"parts": []}}
     web._training_example("a lamp", good)
     web._training_example("a lamp", {**good, "planner": "offline keyword planner"})
@@ -694,7 +694,7 @@ def http_error(code):
 
 def test_local_model_errors_say_what_to_do():
     import urllib.error
-    from forge import llm
+    from vhbuild import llm
 
     def raising(exc):
         calls = []
@@ -735,14 +735,14 @@ def test_low_power_code_explains_rules_run_once_per_wake():
 
 
 def test_network_printer_without_slicer_says_what_to_do():
-    from forge import machines
+    from vhbuild import machines
     with pytest.raises(machines.MachineError, match="Open in my slicer"):
         machines.send_to_printer("lamp", b"3mf", {"kind": "octoprint", "url": "http://x", "slicer": ""})
 
 
 def test_uploads_over_the_limit_are_refused(monkeypatch):
     from fastapi.testclient import TestClient
-    from forge import web
+    from vhbuild import web
     monkeypatch.setattr(web, "MAX_UPLOAD", 1000)
     c = TestClient(web.app)
     assert c.post("/api/vbuild", content=b"x" * 2000).status_code == 413
@@ -750,7 +750,7 @@ def test_uploads_over_the_limit_are_refused(monkeypatch):
 
 def test_a_full_queue_answers_busy(monkeypatch):
     from fastapi.testclient import TestClient
-    from forge import web
+    from vhbuild import web
     monkeypatch.setattr(web, "MAX_QUEUED", 0)
     monkeypatch.setattr(web, "MAX_JOBS", 1)
     monkeypatch.setitem(web.jobs, "held", {"state": "running", "log": [], "started": 0})
@@ -760,15 +760,15 @@ def test_a_full_queue_answers_busy(monkeypatch):
 
 def test_status_and_manifest_carry_the_version():
     from fastapi.testclient import TestClient
-    from forge import __version__, vbuild, web
+    from vhbuild import __version__, vbuild, web
     assert TestClient(web.app).get("/api/status").json()["version"] == __version__
     man, _ = vbuild.read(pipeline.bundle(offline("a button")))
-    assert man["generator"] == f"Forge {__version__}"
+    assert man["generator"] == f"V-Hbuild {__version__}"
 
 
 def test_website_build_has_the_viewer_and_playable_samples(tmp_path, monkeypatch):
     import importlib.util
-    from forge import vbuild
+    from vhbuild import vbuild
     spec = importlib.util.spec_from_file_location("build_site", "scripts/build_site.py")
     mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
     monkeypatch.setattr(mod, "OUT", tmp_path / "dist")

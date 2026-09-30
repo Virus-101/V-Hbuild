@@ -1,7 +1,7 @@
-# Forge: describe a device, watch it get built
+# V-Hbuild: describe a device, watch it get built
 
 You describe a device in plain words, for example *"a plant monitor that waters
-my basil when the soil is dry"*. Forge designs it with a **local AI model** and hands you
+my basil when the soil is dry"*. V-Hbuild designs it with a **local AI model** and hands you
 a **`.vbuild` file**. Open that file and you watch the device being built: the
 enclosure prints layer by layer, each part drops into place, the wires draw
 themselves to their pins, the board is flashed, and the lid closes.
@@ -32,7 +32,7 @@ idea ─► the model plans (parts only) ─► engine checks the electronics �
 
 ```powershell
 pip install -r requirements.txt
-python -m uvicorn forge.web:app --host 0.0.0.0 --port 8780
+python -m uvicorn vhbuild.web:app --host 0.0.0.0 --port 8780
 ```
 
 or `docker compose up -d`, which also runs the local model in Ollama (see `models/README.md`).
@@ -43,7 +43,7 @@ the `.vbuild` file or the printer and firmware files individually.
 
 ```powershell
 pip install -r requirements-desktop.txt
-python -m forge.desktop                  # or: python -m forge.desktop device.vbuild
+python -m vhbuild.desktop                  # or: python -m vhbuild.desktop device.vbuild
 ```
 
 The desktop app does everything the platform does, and adds the machines:
@@ -53,28 +53,28 @@ The desktop app does everything the platform does, and adds the machines:
 - **Flash board** writes the firmware over USB.
 
 Printer and model settings live under **Settings**. The Windows installer
-(`ForgeSetup-x.y.z.exe`) is built by GitHub Actions (`.github/workflows/desktop.yml`,
+(`V-HbuildSetup-x.y.z.exe`) is built by GitHub Actions (`.github/workflows/desktop.yml`,
 on a `v*` tag or run by hand). It registers `.vbuild`, so double-clicking one
-opens it in Forge.
+opens it in V-Hbuild.
 
 **The command line:**
 
 ```powershell
-python -m forge "a desk light that turns red when someone walks in" -o out/
+python -m vhbuild "a desk light that turns red when someone walks in" -o out/
 ```
 
 ## The model: local first
 
-Forge plans with a model served by [Ollama](https://ollama.com) on your own
+V-Hbuild plans with a model served by [Ollama](https://ollama.com) on your own
 machine. The default is `llama3.2:3b` (`ollama pull llama3.2:3b`). Any Ollama
 model works, including your own GGUF; see `models/README.md`.
 
-A small model on its own would invent parts and wiring. Forge doesn't let it:
+A small model on its own would invent parts and wiring. V-Hbuild doesn't let it:
 
 - **The output is held to a schema.** Ollama turns the plan's JSON schema into a
   grammar, and the part and board fields are enums of the catalog. The model
   cannot write a part that doesn't exist.
-- **The model never does the electronics.** It picks parts; `forge/engine.py`
+- **The model never does the electronics.** It picks parts; `vhbuild/engine.py`
   assigns every pin and I2C address, sizes the power rails, and adds the
   resistors, capacitors, relay, charger and boost converter. Plans the engine
   rejects go back to the model with the reasons.
@@ -83,16 +83,16 @@ A small model on its own would invent parts and wiring. Forge doesn't let it:
   records each change.
 - **The model writes rules, not C++.** For the behaviour it picks rules from a
   menu of this device's variables and actions, e.g. "every 10 minutes, if soil
-  moisture is below 35%, run the pump for 3 seconds". Forge generates the C++
+  moisture is below 35%, run the pump for 3 seconds". V-Hbuild generates the C++
   from those rules and compile-checks it before it ships.
 
 Claude can be selected as a second planner (`ANTHROPIC_API_KEY`). The offline
-keyword planner needs no model at all. Set `FORGE_PROVIDER` to
+keyword planner needs no model at all. Set `VHBUILD_PROVIDER` to
 `auto | local | claude | offline`. `auto` picks the local model whenever Ollama
 is serving it.
 
 To make a local model better at this over time, set
-`FORGE_TRAINING_LOG=train.jsonl`. Every plan the engine accepts is saved as an
+`VHBUILD_TRAINING_LOG=train.jsonl`. Every plan the engine accepts is saved as an
 idea → plan example to fine-tune on.
 
 ## The `.vbuild` file
@@ -115,24 +115,24 @@ image, the PlatformIO source, the BOM and the wiring table. The full spec is in
 
 | Path | What it does |
 | --- | --- |
-| `forge/catalog.py` | the parts Forge may use, with datasheet facts |
-| `forge/llm.py` | the local model (Ollama) and Claude, behind one "fill this schema" call |
-| `forge/planner.py` | idea → plan, plus the offline keyword planner |
-| `forge/engine.py` | pins, addresses, power, passives, rule checks |
-| `forge/firmware.py`, `forge/compile.py` | firmware source → flashable image |
-| `forge/enclosure.py`, `forge/geometry.py` | box layout and cutouts → OpenSCAD, STL, 3MF, GLB |
-| `forge/vbuild.py` | the `.vbuild` writer and safe reader |
-| `forge/machines.py` | USB flashing, UF2 drives, OctoPrint / Moonraker / folder, slicing |
-| `forge/web.py` | the server: build jobs, files, desktop-only machine API |
-| `forge/desktop.py` | the desktop app: local server + native window |
-| `forge/static/` | the web UI and the 3D viewer (three.js, bundled for offline use) |
+| `vhbuild/catalog.py` | the parts V-Hbuild may use, with datasheet facts |
+| `vhbuild/llm.py` | the local model (Ollama) and Claude, behind one "fill this schema" call |
+| `vhbuild/planner.py` | idea → plan, plus the offline keyword planner |
+| `vhbuild/engine.py` | pins, addresses, power, passives, rule checks |
+| `vhbuild/firmware.py`, `vhbuild/compile.py` | firmware source → flashable image |
+| `vhbuild/enclosure.py`, `vhbuild/geometry.py` | box layout and cutouts → OpenSCAD, STL, 3MF, GLB |
+| `vhbuild/vbuild.py` | the `.vbuild` writer and safe reader |
+| `vhbuild/machines.py` | USB flashing, UF2 drives, OctoPrint / Moonraker / folder, slicing |
+| `vhbuild/web.py` | the server: build jobs, files, desktop-only machine API |
+| `vhbuild/desktop.py` | the desktop app: local server + native window |
+| `vhbuild/static/` | the web UI and the 3D viewer (three.js, bundled for offline use) |
 
 ## Tests
 
 ```powershell
 pip install -r requirements-dev.txt
 pytest                                    # about 2 s
-$env:FORGE_TEST_COMPILE=1; pytest -k real_compile   # compiles an ESP32 and a Pico W image
+$env:VHBUILD_TEST_COMPILE=1; pytest -k real_compile   # compiles an ESP32 and a Pico W image
 ```
 
 The suite covers:
@@ -174,4 +174,4 @@ See [CHANGELOG.md](CHANGELOG.md).
 ## License
 
 MIT - see [LICENSE](LICENSE). The bundled three.js and fflate libraries in
-`forge/static/vendor/` keep their own MIT licenses, included next to them.
+`vhbuild/static/vendor/` keep their own MIT licenses, included next to them.

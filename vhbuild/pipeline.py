@@ -163,7 +163,7 @@ def assembly(d: engine.Design, plan: dict, fw_notes: list[str], fw_file: str | N
             "1. Buy the parts in `bom.csv`.",
             "2. Wire it on a breadboard first, following `wiring.md` - power off while wiring.",
             "3. Install PlatformIO (VS Code extension or `pip install platformio`).",
-            (f"4. Flash `firmware/{fw_file}` from the Forge desktop app, or "
+            (f"4. Flash `firmware/{fw_file}` from the V-Hbuild desktop app, or "
              + ("copy it onto the RPI-RP2 drive (hold BOOTSEL while plugging in)."
                 if fw_file.endswith(".uf2") else "`esptool.py write_flash 0x0 firmware/firmware.bin`.")
              if fw_file else
@@ -183,7 +183,7 @@ def assembly(d: engine.Design, plan: dict, fw_notes: list[str], fw_file: str | N
         out += ["", "## Firmware notes", ""] + [f"- {n}" for n in fw_notes]
     if model_notes:
         out += ["", "## Notes from the model", "",
-                "_The planner model's own words, not checked by Forge. The wiring, parts "
+                "_The planner model's own words, not checked by V-Hbuild. The wiring, parts "
                 "and code above are checked; these may mention things the design does not have._",
                 ""] + [f"- {n}" for n in model_notes]
     return "\n".join(out) + "\n"

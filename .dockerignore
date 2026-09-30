@@ -1,7 +1,7 @@
 .venv
 .git
 **/__pycache__
-forge-out
+vhbuild-out
 .pytest_cache
 models/*.gguf
 dist

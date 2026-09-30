@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
+
+- The project is named V-Hbuild everywhere: the app, the installer
+  (`V-HbuildSetup`), the website, the docs, the Python package (`vhbuild`,
+  so `python -m vhbuild`) and the settings (`VHBUILD_*` environment variables).
+  Desktop settings now live in a `V-Hbuild` folder; set the model and printer
+  again after upgrading.
+- The website no longer shows Netlify's badge: its security policy only
+  allows scripts from the site's own `/static/` folder.
 
 - A static website (`site/`, `netlify.toml`): landing page, three example
   builds, and the 3D viewer running in the browser. The viewer opens
@@ -13,7 +21,7 @@ Fixes
 - **ESP32-C3 serial output.** The DevKitM-1's USB port is a CP2102N bridge, but
   the generated firmware sent `Serial` to the chip's native USB, so nothing
   appeared in the serial monitor. Serial now goes to the bridge.
-- **esptool 4.x.** Forge uses esptool 5's command names; the requirement now
+- **esptool 4.x.** V-Hbuild uses esptool 5's command names; the requirement now
   says `esptool>=5.0` instead of failing at the firmware step.
 - **Empty plans.** A model that returned no parts produced a "passing" design
   with nothing but a board. The engine now rejects it and asks for a replan.
@@ -23,19 +31,19 @@ Fixes
 - **Live values in messages** now work for readings with dots in their names
   (the accelerometer's `s1_a.acceleration.x`).
 - **Model notes are labelled.** The planner model's own notes now appear under
-  "Notes from the model (unchecked)", apart from Forge's checked notes.
+  "Notes from the model (unchecked)", apart from V-Hbuild's checked notes.
 - **Network printers without a slicer** now explain what to set up.
 - **The command line** prints a plain error message, not a traceback.
 
 Platform
 - Uploads are size-checked while streaming (32 MB default) instead of after
   reading them into memory, stored builds have a memory budget, and new builds
-  get "busy" (429) when the queue is full. Tune with `FORGE_MAX_UPLOAD_MB`,
-  `FORGE_MAX_HELD_MB` and `FORGE_MAX_QUEUED`.
+  get "busy" (429) when the queue is full. Tune with `VHBUILD_MAX_UPLOAD_MB`,
+  `VHBUILD_MAX_HELD_MB` and `VHBUILD_MAX_QUEUED`.
 
 Faster
 - Firmware builds reuse a cached PlatformIO project per board and library set:
-  about 8 s instead of about 30 s after the first build. `FORGE_CACHE_DIR`
+  about 8 s instead of about 30 s after the first build. `VHBUILD_CACHE_DIR`
   sets where the cache lives.
 
 Also

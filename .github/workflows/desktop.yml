@@ -23,28 +23,28 @@ jobs:
           cache: pip
       - run: pip install -r requirements-desktop.txt pytest httpx
       - run: pytest -q
-      - run: pyinstaller packaging/forge-desktop.spec --noconfirm
+      - run: pyinstaller packaging/vhbuild-desktop.spec --noconfirm
       - name: Smoke-test the bundle
         shell: pwsh
         run: |
-          $p = Start-Process dist\Forge\Forge.exe -ArgumentList "--browser","--port","8799" -PassThru
+          $p = Start-Process dist\V-Hbuild\V-Hbuild.exe -ArgumentList "--browser","--port","8799" -PassThru
           $ok = $false
           foreach ($i in 1..40) {
             try { $s = Invoke-RestMethod http://127.0.0.1:8799/api/status; if ($s.desktop) { $ok = $true; break } } catch {}
             Start-Sleep -Milliseconds 500
           }
           Stop-Process $p -Force
-          if (-not $ok) { throw "Forge.exe did not start its server" }
+          if (-not $ok) { throw "V-Hbuild.exe did not start its server" }
       - name: Build the installer
         shell: pwsh
         run: |
           $tag = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}" } else { "${{ inputs.release_tag }}" }
           $version = if ($tag) { $tag.TrimStart("v") } else { "0.0.${{ github.run_number }}" }
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" packaging\forge.iss
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" packaging\vhbuild.iss
       - uses: actions/upload-artifact@v4
         with:
-          name: ForgeSetup-windows
-          path: dist/ForgeSetup-*.exe
+          name: V-HbuildSetup-windows
+          path: dist/V-HbuildSetup-*.exe
 
   macos:
     runs-on: macos-latest
@@ -55,12 +55,12 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install -r requirements-desktop.txt
-      - run: pyinstaller packaging/forge-desktop.spec --noconfirm
-      - run: cd dist && zip -qr Forge-macos.zip Forge
+      - run: pyinstaller packaging/vhbuild-desktop.spec --noconfirm
+      - run: cd dist && zip -qr V-Hbuild-macos.zip V-Hbuild
       - uses: actions/upload-artifact@v4
         with:
-          name: Forge-macos
-          path: dist/Forge-macos.zip
+          name: V-Hbuild-macos
+          path: dist/V-Hbuild-macos.zip
 
   release:
     # On a v* tag - or a manual run given a release_tag - publish both builds
@@ -77,8 +77,8 @@ jobs:
         with:
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
           target_commitish: ${{ github.sha }}
-          name: Forge ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
+          name: V-Hbuild ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
           generate_release_notes: true
           files: |
-            dist/ForgeSetup-*.exe
-            dist/Forge-macos.zip
+            dist/V-HbuildSetup-*.exe
+            dist/V-Hbuild-macos.zip

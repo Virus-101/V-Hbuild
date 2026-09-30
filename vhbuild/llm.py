@@ -1,4 +1,4 @@
-"""The models Forge can plan with.
+"""The models V-Hbuild can plan with.
 
 The default is a local model served by Ollama on this machine - any model,
 including your own GGUF (see models/README.md). Claude is available as an
@@ -18,20 +18,20 @@ import urllib.request
 
 from pydantic import BaseModel, ValidationError
 
-TIMEOUT = float(os.environ.get("FORGE_LLM_TIMEOUT", "600"))
+TIMEOUT = float(os.environ.get("VHBUILD_LLM_TIMEOUT", "600"))
 
 
 # Read at call time, so the desktop app's settings take effect without a restart.
 def ollama_url() -> str:
-    return os.environ.get("FORGE_OLLAMA_URL", "http://localhost:11434").rstrip("/")
+    return os.environ.get("VHBUILD_OLLAMA_URL", "http://localhost:11434").rstrip("/")
 
 
 def local_model_name() -> str:
-    return os.environ.get("FORGE_LOCAL_MODEL", "llama3.2:3b")
+    return os.environ.get("VHBUILD_LOCAL_MODEL", "llama3.2:3b")
 
 
 def claude_model() -> str:
-    return os.environ.get("FORGE_MODEL", "claude-opus-5")
+    return os.environ.get("VHBUILD_MODEL", "claude-opus-5")
 
 
 class ProviderError(RuntimeError):
@@ -102,7 +102,7 @@ class Local:
             raise ProviderError(f"Ollama answered {e.code} for {self.model}.")
         except TimeoutError:
             raise ProviderError(f"The local model took longer than {TIMEOUT:.0f} s. A smaller "
-                                f"model, or FORGE_LLM_TIMEOUT, will help.")
+                                f"model, or VHBUILD_LLM_TIMEOUT, will help.")
         except (urllib.error.URLError, OSError) as e:
             reason = getattr(e, "reason", e)
             if isinstance(reason, ConnectionRefusedError):
@@ -181,11 +181,11 @@ class Claude:
 def choose(preference: str | None = None):
     """The provider to use, or None for the offline keyword planner.
 
-    FORGE_PROVIDER = auto (default) | local | claude | offline.
+    VHBUILD_PROVIDER = auto (default) | local | claude | offline.
     auto prefers the local model whenever Ollama is serving it.
     """
-    pref = (preference or os.environ.get("FORGE_PROVIDER") or "auto").lower()
-    if os.environ.get("FORGE_OFFLINE") or pref == "offline":
+    pref = (preference or os.environ.get("VHBUILD_PROVIDER") or "auto").lower()
+    if os.environ.get("VHBUILD_OFFLINE") or pref == "offline":
         return None
     if pref == "local":
         return Local()
@@ -203,4 +203,4 @@ def status() -> dict:
     mv = Local()
     return {"local": {"url": mv.url, "model": mv.model, "available": mv.available()},
             "claude": {"model": claude_model(), "available": Claude.available()},
-            "preference": os.environ.get("FORGE_PROVIDER", "auto")}
+            "preference": os.environ.get("VHBUILD_PROVIDER", "auto")}

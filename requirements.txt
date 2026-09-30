@@ -1,4 +1,4 @@
-# Forge core: the platform server, the CLI, and the engine inside the desktop app.
+# V-Hbuild core: the platform server, the CLI, and the engine inside the desktop app.
 fastapi>=0.110
 uvicorn>=0.29
 pydantic>=2.7

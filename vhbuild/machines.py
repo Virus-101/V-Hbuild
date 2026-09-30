@@ -51,15 +51,15 @@ class MachineError(RuntimeError):
 # --- settings --------------------------------------------------------------
 
 def settings_path() -> Path:
-    if os.environ.get("FORGE_SETTINGS"):
-        return Path(os.environ["FORGE_SETTINGS"])
+    if os.environ.get("VHBUILD_SETTINGS"):
+        return Path(os.environ["VHBUILD_SETTINGS"])
     if sys.platform == "win32":
         base = Path(os.environ.get("APPDATA", Path.home()))
     elif sys.platform == "darwin":
         base = Path.home() / "Library/Application Support"
     else:
         base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return base / "Forge" / "settings.json"
+    return base / "V-Hbuild" / "settings.json"
 
 
 def load_settings() -> dict:
@@ -204,7 +204,7 @@ def slice_3mf(model: bytes, cfg: dict) -> bytes:
     slicer = cfg.get("slicer", "")
     if not slicer:
         raise MachineError("No slicer configured.")
-    with tempfile.TemporaryDirectory(prefix="forge-slice-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="vhbuild-slice-") as tmp:
         src, out = Path(tmp) / "plate.3mf", Path(tmp) / "plate.gcode"
         src.write_bytes(model)
         template = shlex.split(cfg.get("slicer_args") or DEFAULT_SETTINGS["printer"]["slicer_args"],
@@ -237,7 +237,7 @@ def send_to_printer(name: str, model_3mf: bytes, cfg: dict) -> str:
         return f"Saved {name}.3mf to {folder}."
 
     if not cfg.get("slicer"):
-        raise MachineError(f"{kind.capitalize()} prints G-code, so Forge needs a slicer to make it: "
+        raise MachineError(f"{kind.capitalize()} prints G-code, so V-Hbuild needs a slicer to make it: "
                            "set the slicer program in Settings, or use Open in my slicer.")
     gcode = slice_3mf(model_3mf, cfg)
     url = (cfg.get("url") or "").rstrip("/")

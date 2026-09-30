@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from forge import pipeline, planner  # noqa: E402
+from vhbuild import pipeline, planner  # noqa: E402
 
 OUT = Path(__file__).resolve().parent.parent / "site" / "samples"
 

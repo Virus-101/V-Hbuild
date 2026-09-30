@@ -2,12 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "forge",
+      "name": "vhbuild",
       "runtimeExecutable": "python",
       "runtimeArgs": [
         "-m",
         "uvicorn",
-        "forge.web:app",
+        "vhbuild.web:app",
         "--host",
         "127.0.0.1",
         "--port",

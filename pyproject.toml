@@ -1,12 +1,12 @@
 [project]
-name = "forge"
-version = "0.2.0"
+name = "vhbuild"
+version = "0.3.0"
 description = "Describe a device; get a .vbuild your printer and board can build."
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 
 [tool.pytest.ini_options]
-# Import the forge package from the checkout, however pytest is started.
+# Import the vhbuild package from the checkout, however pytest is started.
 pythonpath = ["."]
 testpaths = ["tests"]

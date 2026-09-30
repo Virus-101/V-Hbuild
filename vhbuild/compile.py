@@ -19,7 +19,7 @@ from pathlib import Path
 
 from .catalog import Board
 
-TIMEOUT = int(os.environ.get("FORGE_COMPILE_TIMEOUT", "900"))
+TIMEOUT = int(os.environ.get("VHBUILD_COMPILE_TIMEOUT", "900"))
 # The app partition follows the Arduino-ESP32 default table.
 ESP32_LAYOUT = (("0x0", "bootloader.bin"), ("0x8000", "partitions.bin"),
                 ("0xe000", "boot_app0.bin"), ("0x10000", "firmware.bin"))
@@ -41,10 +41,10 @@ def _boot_app0() -> Path | None:
 
 def cache_dir() -> Path:
     """Where build projects persist between builds, so libraries compile once."""
-    if os.environ.get("FORGE_CACHE_DIR"):
-        return Path(os.environ["FORGE_CACHE_DIR"])
+    if os.environ.get("VHBUILD_CACHE_DIR"):
+        return Path(os.environ["VHBUILD_CACHE_DIR"])
     base = os.environ.get("LOCALAPPDATA") or os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache"
-    return Path(base) / "forge" / "builds"
+    return Path(base) / "vhbuild" / "builds"
 
 
 _locks: dict[str, threading.Lock] = {}

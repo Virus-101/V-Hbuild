@@ -3,7 +3,7 @@
     python scripts/build_site.py
 
 The site is the landing page (site/), the example builds (site/samples/)
-and the same 3D viewer the app uses (forge/static/), which runs entirely in
+and the same 3D viewer the app uses (vhbuild/static/), which runs entirely in
 the browser. Standard library only, so any host's Python can run it.
 """
 import shutil
@@ -17,7 +17,7 @@ def main() -> None:
     if OUT.exists():
         shutil.rmtree(OUT)
     shutil.copytree(ROOT / "site", OUT)
-    static = ROOT / "forge" / "static"
+    static = ROOT / "vhbuild" / "static"
     # The viewer references /static/...; the app's own pages stay out of the site.
     shutil.copytree(static, OUT / "static", ignore=shutil.ignore_patterns("index.html", "viewer.html"))
     shutil.copy2(static / "viewer.html", OUT / "viewer.html")
