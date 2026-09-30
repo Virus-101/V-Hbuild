@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forge — describe a device, watch it get built</title>
+<meta name="description" content="Forge turns a one-sentence device idea into parts, wiring, compiled firmware and a printable enclosure, then shows it being built in 3D. Open source, runs on your own machine.">
+<meta property="og:title" content="Forge — describe a device, watch it get built">
+<meta property="og:description" content="Parts, wiring, compiled firmware and a printable enclosure from one sentence. Open source; plans with a local AI model.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23c2410c'/><path d='M9 10h14v3H13v3h8v3h-8v6H9z' fill='white'/></svg>">
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1c1a; --muted: #6b6860; --line: #e3e0d8;
+  --accent: #c2410c; --accent-ink: #ffffff; --soft: #f1efe9;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161514; --panel: #1f1e1c; --ink: #ece9e2; --muted: #9c988e; --line: #34322e;
+    --accent: #f97316; --accent-ink: #1b1005; --soft: #262522;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: inherit; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+nav { display: flex; align-items: center; gap: 16px; padding: 18px 0; }
+nav .brand { font-weight: 800; font-size: 20px; text-decoration: none; letter-spacing: -0.02em; }
+nav .links { margin-left: auto; display: flex; gap: 18px; font-size: 15px; }
+nav .links a { text-decoration: none; color: var(--muted); }
+nav .links a:hover { color: var(--ink); }
+.hero { padding: 48px 0 32px; }
+.hero h1 { font-size: clamp(34px, 6vw, 56px); line-height: 1.08; letter-spacing: -0.03em; margin: 0 0 18px; max-width: 16ch; }
+.hero p { font-size: 19px; color: var(--muted); max-width: 60ch; margin: 0 0 28px; }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn { display: inline-block; font-weight: 650; text-decoration: none; border-radius: 10px; padding: 12px 20px;
+  background: var(--accent); color: var(--accent-ink); border: 1px solid transparent; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn:hover { filter: brightness(1.05); }
+.idea { margin-top: 36px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px;
+  font-size: 18px; max-width: 720px; }
+.idea span { color: var(--muted); font-size: 13px; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .06em; }
+section { padding: 40px 0; border-top: 1px solid var(--line); }
+section h2 { font-size: 26px; letter-spacing: -0.02em; margin: 0 0 8px; }
+section > .wrap > p.lead { color: var(--muted); margin: 0 0 24px; max-width: 65ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+.card h3 { margin: 0 0 6px; font-size: 17px; }
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+.card .n { color: var(--accent); font-weight: 800; font-size: 14px; }
+.samples .card { display: flex; flex-direction: column; gap: 10px; }
+.samples .card .btn { align-self: flex-start; padding: 9px 16px; font-size: 15px; }
+.samples .board { font-size: 13px; color: var(--muted); }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 760px) { .split { grid-template-columns: 1fr; } nav .links a.hide-sm { display: none; } }
+ul.checks { padding-left: 20px; margin: 0; }
+ul.checks li { margin: 6px 0; }
+code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 14px; background: var(--soft);
+  padding: 2px 6px; border-radius: 5px; }
+pre { background: var(--soft); border-radius: 10px; padding: 14px; overflow-x: auto; font-size: 14px; margin: 10px 0 0; }
+footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="/">Forge</a>
+    <div class="links">
+      <a href="viewer.html">Viewer</a>
+      <a class="hide-sm" href="#how">How it works</a>
+      <a href="https://github.com/Virus-101/V-Hbuild">GitHub</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <h1>Describe a device. Watch it get built.</h1>
+    <p>Forge turns one sentence into the parts list, the wiring, compiled firmware and a
+      3D-printable enclosure, then plays the build in 3D. The desktop app sends the enclosure to
+      your printer and flashes the firmware onto your board.</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/Virus-101/V-Hbuild/releases/latest">Download for Windows or macOS</a>
+      <a class="btn ghost" href="viewer.html?src=samples/plant-monitor.vbuild">See an example build</a>
+    </div>
+    <div class="idea"><span>You type</span>“A plant monitor that waters my basil when the soil is dry and shows the moisture on a small screen.”</div>
+  </header>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2>Watch these get built</h2>
+    <p class="lead">Each example is a real <code>.vbuild</code> file Forge produced, with compiled firmware and
+      print-ready enclosure files inside. They play right here in your browser.</p>
+    <div class="grid samples">
+      <div class="card">
+        <h3>Basil Keeper</h3>
+        <p>Waters the plant when the soil is dry and shows the moisture on a screen.</p>
+        <span class="board">ESP32-C3 · soil sensor · pump · relay · OLED</span>
+        <a class="btn" href="viewer.html?src=samples/plant-monitor.vbuild">Watch it built</a>
+      </div>
+      <div class="card">
+        <h3>Door Glow</h3>
+        <p>An LED ring turns red when someone walks in; a button turns it off.</p>
+        <span class="board">Raspberry Pi Pico W · PIR sensor · LED ring · button</span>
+        <a class="btn" href="viewer.html?src=samples/motion-lamp.vbuild">Watch it built</a>
+      </div>
+      <div class="card">
+        <h3>Balcony Weather</h3>
+        <p>Temperature, humidity and pressure on a small screen.</p>
+        <span class="board">ESP32-C3 · BME280 · OLED</span>
+        <a class="btn" href="viewer.html?src=samples/weather-station.vbuild">Watch it built</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <p class="lead">A small AI model chooses the parts and describes the behaviour. Everything
+      electrical is done by plain code, so the result is correct even when the model isn't clever.</p>
+    <div class="grid">
+      <div class="card"><div class="n">1 · Plan</div><h3>The model picks parts</h3>
+        <p>A local model (through Ollama) chooses from a catalog of real parts. It cannot invent one.</p></div>
+      <div class="card"><div class="n">2 · Engineer</div><h3>Code does the electronics</h3>
+        <p>Pins, I2C addresses, power budget, resistors and level shifting. Bad plans go back to the model with the reasons.</p></div>
+      <div class="card"><div class="n">3 · Program</div><h3>Rules become firmware</h3>
+        <p>The model describes behaviour as rules; Forge writes the C++ and compiles it for an ESP32 or a Pico W.</p></div>
+      <div class="card"><div class="n">4 · Build</div><h3>One file for every machine</h3>
+        <p>The <code>.vbuild</code> holds the 3D build, a 3MF for your slicer and the firmware image for your board.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap split">
+    <div>
+      <h2>Get it</h2>
+      <ul class="checks">
+        <li><a href="https://github.com/Virus-101/V-Hbuild/releases/latest">Windows installer and macOS app</a>. Opens <code>.vbuild</code> files, prints and flashes.</li>
+        <li><a href="https://ollama.com">Ollama</a> with a model: <code>ollama pull llama3.2:3b</code></li>
+        <li>Optional: <a href="https://platformio.org">PlatformIO</a> to compile firmware into the file</li>
+      </ul>
+      <p>Or run it from source:</p>
+      <pre>pip install -r requirements.txt
+python -m forge.desktop</pre>
+    </div>
+    <div>
+      <h2>Honest limits</h2>
+      <ul class="checks">
+        <li>A small catalog: 3 boards and 16 modules.</li>
+        <li>Ready-made modules and jumper wires, not custom circuit boards.</li>
+        <li>A simple rectangular enclosure; check the fit before a long print.</li>
+        <li>Early software (v0.2). Contributions welcome, especially new parts.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">Forge is open source under the MIT license ·
+    <a href="https://github.com/Virus-101/V-Hbuild">Source on GitHub</a> ·
+    <a href="https://github.com/Virus-101/V-Hbuild/blob/main/CHANGELOG.md">Changelog</a></div>
+</footer>
+</body>
+</html>

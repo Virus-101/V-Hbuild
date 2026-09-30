@@ -764,3 +764,21 @@ def test_status_and_manifest_carry_the_version():
     assert TestClient(web.app).get("/api/status").json()["version"] == __version__
     man, _ = vbuild.read(pipeline.bundle(offline("a button")))
     assert man["generator"] == f"Forge {__version__}"
+
+
+def test_website_build_has_the_viewer_and_playable_samples(tmp_path, monkeypatch):
+    import importlib.util
+    from forge import vbuild
+    spec = importlib.util.spec_from_file_location("build_site", "scripts/build_site.py")
+    mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    monkeypatch.setattr(mod, "OUT", tmp_path / "dist")
+    mod.main()
+    out = tmp_path / "dist"
+    assert (out / "viewer.html").exists() and (out / "static/viewer.js").exists()
+    assert (out / "static/vendor/three.module.min.js").exists()
+    assert not (out / "static/index.html").exists()        # the app page is not part of the site
+    samples = sorted((out / "samples").glob("*.vbuild"))
+    assert len(samples) == 3
+    for s in samples:
+        man, files = vbuild.read(s.read_bytes())
+        assert man["model"] in files and man["machines"]["board"]["file"] in files

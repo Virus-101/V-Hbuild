@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- A static website (`site/`, `netlify.toml`): landing page, three example
+  builds, and the 3D viewer running in the browser. The viewer opens
+  same-site links (`viewer.html?src=...`) and offers the printer and firmware
+  files straight from the loaded `.vbuild`, so it needs no server.
+
 ## 0.2.0
 
 Fixes

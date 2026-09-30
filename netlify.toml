@@ -1,0 +1,19 @@
+# The Forge website: landing page, example builds and the in-browser 3D viewer.
+# The Forge app itself (Python, PlatformIO, a local model) does not run here.
+[build]
+  command = "python3 scripts/build_site.py"
+  publish = "site-dist"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # The viewer is a module script with an import map; everything it loads is from this site.
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+
+[[headers]]
+  for = "/samples/*"
+  [headers.values]
+    Content-Type = "application/zip"
+    Cache-Control = "public, max-age=3600"

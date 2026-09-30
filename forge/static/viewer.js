@@ -273,10 +273,20 @@ async function renderMachines() {
   const board = man.machines?.board || {};
   const fw = board.file;
   if (!status.desktop) {
-    const link = (p, label) => buildId && files[p] ? `<a class="btn ghost" href="/api/build/${buildId}/file/${encodeURI(p)}">${label}</a>` : "";
-    box.innerHTML = `<h2>Your machines</h2>
-      <div class="row">${link("enclosure/print_plate.3mf", "Printer file (.3mf)")}${fw ? link(fw, "Board firmware") : ""}</div>
+    // Downloads come straight out of the loaded file, so this works on a
+    // static host with no Forge server behind it.
+    box.innerHTML = `<h2>Your machines</h2><div class="row" id="m-files"></div>
       <p class="hint">Open this .vbuild in the Forge desktop app to print the enclosure and flash the board directly.</p>`;
+    const add = (p, label) => {
+      if (!files[p]) return;
+      const a = document.createElement("a");
+      a.className = "btn ghost"; a.textContent = label;
+      a.download = p.split("/").pop();
+      a.href = URL.createObjectURL(new Blob([files[p]]));
+      $("m-files").appendChild(a);
+    };
+    add("enclosure/print_plate.3mf", "Printer file (.3mf)");
+    if (fw) add(fw, "Board firmware");
     return;
   }
   box.innerHTML = `<h2>Your machines</h2>
@@ -357,7 +367,25 @@ stage.addEventListener("drop", (e) => {
 
 (async () => {
   resize();
-  status = await fetch("/api/status").then((r) => r.json()).catch(() => ({ desktop: false }));
+  status = await fetch("/api/status").then((r) => r.json()).catch(() => ({ desktop: false, static: true }));
+  if (status.static) $("home").textContent = "Forge home";   // no Forge server: the link goes to the site
+  const src = params.get("src");
+  if (src && !buildId) {
+    // Only files from this same site: the viewer is not a proxy for arbitrary URLs.
+    try {
+      const url = new URL(src, location.href);
+      if (url.origin !== location.origin) throw new Error("Examples must come from this site.");
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`Could not load ${url.pathname} (${r.status}).`);
+      rawFile = new Uint8Array(await r.arrayBuffer());
+      $("download").href = url.pathname;
+      $("download").setAttribute("download", url.pathname.split("/").pop());
+      $("download").hidden = false;
+      await openBytes(rawFile);
+    } catch (e) {
+      $("drop").querySelector("b").textContent = e.message;
+    }
+  }
   if (buildId) {
     try {
       const r = await fetch(`/api/build/${buildId}.vbuild`);

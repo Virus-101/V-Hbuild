@@ -1,0 +1,2 @@
+# The viewer asks /api/status whether a Forge server is behind it; on this site none is.
+/api/status  /api-status.json  200

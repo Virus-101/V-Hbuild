@@ -160,6 +160,13 @@ The suite covers:
   choices electrically correct, but not always the best parts for the idea.
   Fine-tuning on the training log is how that improves.
 
+## Website
+
+`site/` is the project website: a landing page, three example builds and the
+3D viewer, all static. `netlify.toml` builds it (`python3 scripts/build_site.py`
+ into `site-dist/`), so connecting the repository to Netlify publishes it. The
+examples are regenerated with `python scripts/make_samples.py`.
+
 ## Changes
 
 See [CHANGELOG.md](CHANGELOG.md).
