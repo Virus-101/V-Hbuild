@@ -160,6 +160,10 @@ The suite covers:
   choices electrically correct, but not always the best parts for the idea.
   Fine-tuning on the training log is how that improves.
 
+## Changes
+
+See [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 MIT - see [LICENSE](LICENSE). The bundled three.js and fflate libraries in

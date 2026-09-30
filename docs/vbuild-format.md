@@ -35,7 +35,7 @@ model lying on its back, so set the camera's up vector to +z.
   "name": "Desk Light Glows",
   "summary": "…", "idea": "the person's own words",
   "created": "2026-09-23T14:31:00Z",
-  "generator": "Forge", "planner": "local model (llama3.2:3b)",
+  "generator": "Forge 0.2.0", "planner": "local model (llama3.2:3b)",
   "units": "mm", "up": "z",
   "ok": true,                    // passed every electrical check
   "issues": [{"severity": "info|warning|error", "message": "…", "replan": false}],

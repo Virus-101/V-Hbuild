@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from . import pipeline, vbuild
+from .llm import ProviderError
 
 
 def main(argv=None) -> int:
@@ -21,9 +22,13 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     provider = "offline" if args.offline else args.provider
-    result = pipeline.run(args.idea, provider=None if provider == "offline" else provider,
-                          compile_firmware=False if args.no_compile else None,
-                          log=lambda m: print(m, file=sys.stderr))
+    try:
+        result = pipeline.run(args.idea, provider=None if provider == "offline" else provider,
+                              compile_firmware=False if args.no_compile else None,
+                              log=lambda m: print(m, file=sys.stderr))
+    except (ProviderError, ValueError) as e:
+        print(f"forge: {e}", file=sys.stderr)
+        return 2
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     data = pipeline.bundle(result)

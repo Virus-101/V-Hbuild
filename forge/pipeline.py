@@ -41,9 +41,9 @@ def run(idea: str, provider=AUTO, compile_firmware: bool | None = None, log=prin
     marked, lib_deps = firmware.skeleton(design)
     skeleton = firmware.finish(marked)
     ini = firmware.platformio_ini(design, lib_deps)
-    main_cpp, fw_notes = skeleton, []
+    main_cpp, fw_notes, model_notes = skeleton, [], []
     if provider is not None and design.ok:
-        main_cpp, fw_notes = firmware.llm_firmware(design, marked, provider)
+        main_cpp, fw_notes, model_notes = firmware.llm_firmware(design, marked, provider)
 
     fw_file, fw_data = None, None
     if compile_firmware is None:
@@ -67,7 +67,7 @@ def run(idea: str, provider=AUTO, compile_firmware: bool | None = None, log=prin
     log("Building the enclosure and the 3D model...")
     geo = geometry.build(design)
     text_files = {
-        "README.md": assembly(design, plan, fw_notes, fw_file),
+        "README.md": assembly(design, plan, fw_notes, fw_file, model_notes),
         "bom.csv": bom_csv(design),
         "wiring.md": wiring_md(design),
         "design.json": json.dumps({"idea": idea, "plan": plan, "design": design.as_dict()}, indent=2),
@@ -91,6 +91,7 @@ def run(idea: str, provider=AUTO, compile_firmware: bool | None = None, log=prin
         "bom": rows,
         "bom_total": round(sum(r["qty"] * r["unit_usd"] for r in rows), 2),
         "firmware_notes": fw_notes,
+        "model_notes": model_notes,
         "firmware_binary": fw_file,
         "volume_cm3": geo["volume_cm3"],
         "files": text_files,
@@ -137,7 +138,8 @@ def wiring_md(d: engine.Design) -> str:
     return "\n".join(out) + "\n"
 
 
-def assembly(d: engine.Design, plan: dict, fw_notes: list[str], fw_file: str | None = None) -> str:
+def assembly(d: engine.Design, plan: dict, fw_notes: list[str], fw_file: str | None = None,
+             model_notes: list[str] = ()) -> str:
     bud = d.budget
     out = [f"# {d.name}", "", d.summary, ""]
     problems = [i for i in d.issues if i.severity != "info"]
@@ -179,6 +181,11 @@ def assembly(d: engine.Design, plan: dict, fw_notes: list[str], fw_file: str | N
         out += ["", "## What the firmware does", ""] + [f"- {b}" for b in d.behavior]
     if fw_notes:
         out += ["", "## Firmware notes", ""] + [f"- {n}" for n in fw_notes]
+    if model_notes:
+        out += ["", "## Notes from the model", "",
+                "_The planner model's own words, not checked by Forge. The wiring, parts "
+                "and code above are checked; these may mention things the design does not have._",
+                ""] + [f"- {n}" for n in model_notes]
     return "\n".join(out) + "\n"
 
 

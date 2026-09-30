@@ -24,6 +24,7 @@ import json
 import time
 import zipfile
 
+from . import __version__
 from .enclosure import WALL, Box
 from .engine import Design
 
@@ -143,7 +144,7 @@ def manifest(result: dict, d: Design, b: Box, glb_nodes: set[str], files: dict[s
         "format": FORMAT, "version": VERSION,
         "name": d.name, "summary": d.summary, "idea": result["idea"],
         "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "generator": "Forge", "planner": result["planner"],
+        "generator": f"Forge {__version__}", "planner": result["planner"],
         "units": "mm", "up": "z",
         "ok": d.ok, "issues": [i.as_dict() for i in d.issues],
         "board": {"id": board.id, "name": board.name, "chip": board.chip},

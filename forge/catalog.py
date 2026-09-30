@@ -60,9 +60,9 @@ BOARDS: dict[str, Board] = {b.id: b for b in [
         id="esp32-c3-devkitm-1",
         name="Espressif ESP32-C3-DevKitM-1",
         family="esp32",
+        # Serial stays on UART0: the micro-USB port is a CP2102N bridge, not native USB.
         pio_env={"platform": "espressif32", "board": "esp32-c3-devkitm-1",
-                 "framework": "arduino",
-                 "build_flags": "-DARDUINO_USB_MODE=1 -DARDUINO_USB_CDC_ON_BOOT=1"},
+                 "framework": "arduino"},
         i2c=(8, 9),
         # 18/19 are USB, 20/21 the UART; 2, 8 and 9 are strapping pins -
         # 8 and 9 go to I2C, whose pull-ups hold them at their boot level.

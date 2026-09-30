@@ -236,6 +236,9 @@ def send_to_printer(name: str, model_3mf: bytes, cfg: dict) -> str:
         (folder / f"{name}.3mf").write_bytes(model_3mf)
         return f"Saved {name}.3mf to {folder}."
 
+    if not cfg.get("slicer"):
+        raise MachineError(f"{kind.capitalize()} prints G-code, so Forge needs a slicer to make it: "
+                           "set the slicer program in Settings, or use Open in my slicer.")
     gcode = slice_3mf(model_3mf, cfg)
     url = (cfg.get("url") or "").rstrip("/")
     if not url:

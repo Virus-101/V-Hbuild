@@ -262,6 +262,7 @@ function render(data) {
   if (plan.assumptions?.length) extra.push(["Assumptions", plan.assumptions]);
   if (d.behavior?.length) extra.push(["Firmware behaviour", d.behavior]);
   if (data.firmware_notes?.length) extra.push(["Firmware notes", data.firmware_notes]);
+  if (data.model_notes?.length) extra.push(["Notes from the model (unchecked)", data.model_notes]);
   $("notes").innerHTML = extra.map(([h, xs]) =>
     `<h2 style="margin-top:16px">${h}</h2><ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`).join("");
 

@@ -1,10 +1,11 @@
 """Firmware: a PlatformIO project for the design.
 
 The skeleton is generated from per-part snippets, so it compiles and reads
-every sensor without any model involved. When Claude is available it is
-handed that skeleton and the plan's behaviour and writes the logic on top -
-but its version is only kept if every pin constant from the skeleton is still
-there, unchanged. The wiring is the engine's; the model does not get to move it.
+every sensor without any model involved. The model then describes the
+device's behaviour as rules - "every 600 s, if s1_pct < 35, run M2 for 3 s" -
+against a schema whose variables and actions are exactly what this device
+has, and the C++ for those rules is generated here. The model never writes
+code, so it cannot move a pin or break the build.
 """
 import re
 
@@ -167,7 +168,9 @@ def skeleton(d: Design) -> tuple[str, list[str]]:
     out.append(CONSTANTS_MARK)
     out.append("const unsigned long INTERVAL_MS = 2000;")
     if sleepy:
-        out.append("const uint64_t SLEEP_SECONDS = 600;  // low power: wake, report, sleep")
+        out.append("// Low power: the board wakes, runs loop() once, and sleeps again. Memory")
+        out.append("// is cleared while it sleeps, so every rule below runs once per wake.")
+        out.append("const uint64_t SLEEP_SECONDS = 600;")
     out.append("")
     for _, s in parts:
         for h in s["helpers"]:
@@ -321,7 +324,7 @@ def _say(obj: str, text: str, variables: dict) -> str:
     text = text.strip()
     if text in variables:                       # a bare variable name means its value
         text = "{" + text + "}"
-    parts = re.split(r"\{(\w+)\}", text)[:13]
+    parts = re.split(r"\{([\w.]+)\}", text)[:13]     # dots: s6_a.acceleration.x
     out = []
     for i, piece in enumerate(parts):
         if i % 2:                               # odd pieces are what was inside braces
@@ -406,8 +409,11 @@ def finish(base: str) -> str:
                 .replace("  " + BEGIN_MARK + "\n", "").replace("  " + END_MARK + "\n", ""))
 
 
-def llm_firmware(d: Design, base: str, provider) -> tuple[str, list[str]]:
-    """Behaviour as rules, turned into C++ here. Falls back to the skeleton on any doubt."""
+def llm_firmware(d: Design, base: str, provider) -> tuple[str, list[str], list[str]]:
+    """Behaviour as rules, turned into C++ here. Falls back to the skeleton on any doubt.
+
+    Returns (main.cpp, Forge's own notes, the model's notes). The model's notes are
+    its words, unchecked, and are kept apart so they are never presented as Forge's."""
     from .llm import ProviderError
     try:
         b = provider.structured(
@@ -417,9 +423,9 @@ def llm_firmware(d: Design, base: str, provider) -> tuple[str, list[str]]:
             + f"\n\n{api(d)}",
             behaviour_model(d), max_tokens=2000)
     except ProviderError as e:
-        return finish(base), [f"Behaviour could not be generated ({e}); the skeleton reads every part."]
+        return finish(base), [f"Behaviour could not be generated ({e}); the skeleton reads every part."], []
     constants, code = rules_to_code(d, b)
     cpp = splice(base, constants, code) if code else None
     if cpp is None:
-        return finish(base), ["No usable behaviour rules came back; the skeleton reads every part."]
-    return cpp, list(b.notes)
+        return finish(base), ["No usable behaviour rules came back; the skeleton reads every part."], []
+    return cpp, [], [n for n in b.notes if n.strip()][:8]

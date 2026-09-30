@@ -205,7 +205,7 @@ def test_plan_is_replanned_when_the_engine_objects():
     r = pipeline.run("measure two distances", provider=fake, compile_firmware=False, log=lambda m: None)
     assert r["design"]["ok"]
     assert "engine rejected" in fake.calls[1]["user"]
-    assert r["firmware_notes"][0] == "tune thresholds"
+    assert r["model_notes"] == ["tune thresholds"]
     assert r["planner"] == "fake"
 
 
@@ -222,7 +222,8 @@ def test_rules_become_code_in_the_skeleton():
     assert "if (s1_pct < 35) { m2_set(true); delay(3000); m2_set(false); " in cpp
     assert 'ds1.print("Watered \\"now\\""); ds1.println(); ds1.display();' in cpp   # escaped C
     assert cpp.index("RULE1_EVERY_MS =") < cpp.index("void setup") < cpp.index("rule1Last = millis()")
-    assert "FORGE:" not in cpp and r["firmware_notes"][0] == "35% is a starting point"
+    assert "FORGE:" not in cpp and r["model_notes"] == ["35% is a starting point"]
+    assert "## Notes from the model" in r["files"]["README.md"]
     assert "s1_pct" in fake.calls[1]["user"] and "M2.switch_on_for" in fake.calls[1]["user"]
 
 
@@ -624,8 +625,12 @@ def test_real_compile_produces_a_flashable_image(board):
     from forge import compile as fwcompile
     d = engine.build(plan("bme280", "button", "ssd1306", board=board))
     cpp, deps = firmware.skeleton(d)
-    built = fwcompile.build(d.board, firmware.platformio_ini(d, deps), cpp)
+    ini = firmware.platformio_ini(d, deps)
+    built = fwcompile.build(d.board, ini, cpp)
     assert built["ok"], built["log"][-1500:]
+    # Built again from the cached project, it must still produce the image.
+    again = fwcompile.build(d.board, ini, cpp)
+    assert again["ok"] and again["data"] == built["data"], again["log"][-1500:]
     if board.startswith("esp32"):
         assert built["file"] == "firmware.bin" and built["data"][0] == 0xE9     # ESP image magic at 0x0
     else:
@@ -668,3 +673,94 @@ def test_review_keeps_what_was_asked_for_and_never_empties_a_plan():
     assert planner.review("something vague", alone)["parts"] == alone["parts"]
     two = planner.review("two buttons", {**plan("button", "button"), "assumptions": [], "out_of_scope": []})
     assert len(two["parts"]) == 2
+
+
+# --- fixes in 0.2.0 -----------------------------------------------------------
+
+def test_a_plan_with_no_parts_is_rejected_for_a_replan():
+    d = engine.build(plan())
+    assert not d.ok and errors(d)[0].replan and "no parts" in errors(d)[0].message
+
+
+def test_c3_serial_goes_to_the_usb_bridge():
+    # The DevKitM-1's micro-USB is a CP2102N; CDC-on-boot would silence Serial there.
+    assert "CDC_ON_BOOT" not in firmware.platformio_ini(engine.build(plan("button")), [])
+
+
+def http_error(code):
+    import urllib.error
+    return urllib.error.HTTPError("http://ollama/api/chat", code, "x", {}, io.BytesIO(b"{}"))
+
+
+def test_local_model_errors_say_what_to_do():
+    import urllib.error
+    from forge import llm
+
+    def raising(exc):
+        calls = []
+
+        def post(path, payload):
+            calls.append(payload)
+            raise exc
+        return post, calls
+    post, calls = raising(http_error(404))
+    with pytest.raises(llm.ProviderError, match="ollama pull llama3.2:3b"):
+        planner.llm_plan("idea", llm.Local(model="llama3.2:3b", post=post))
+    assert len(calls) == 1                                  # no pointless CPU retry
+    post, calls = raising(urllib.error.URLError(ConnectionRefusedError()))
+    with pytest.raises(llm.ProviderError, match="not running"):
+        planner.llm_plan("idea", llm.Local(post=post))
+    post, calls = raising(TimeoutError())
+    with pytest.raises(llm.ProviderError, match="longer than"):
+        planner.llm_plan("idea", llm.Local(post=post))
+    assert len(calls) == 1
+    post, calls = raising(http_error(500))
+    with pytest.raises(llm.ProviderError):
+        planner.llm_plan("idea", llm.Local(post=post))
+    assert len(calls) == 2 and calls[1]["options"]["num_gpu"] == 0   # 500 = crashed runner: CPU once
+
+
+def test_messages_can_show_dotted_readings():
+    d = engine.build(plan("mpu6050"))
+    B = firmware.behaviour_model(d)
+    r = {"every_seconds": 0, "variable": "always", "compare": "none", "threshold": 0,
+         "then": [{"do": "serial.print", "text": "x={s1_a.acceleration.x}"}]}
+    _, code = firmware.rules_to_code(d, B.model_validate({"rules": [r], "notes": []}))
+    assert "Serial.print(s1_a.acceleration.x);" in code
+
+
+def test_low_power_code_explains_rules_run_once_per_wake():
+    cpp, _ = firmware.skeleton(engine.build(plan("bme280", power="lipo", low_power=True)))
+    assert "every rule below runs once per wake" in cpp
+
+
+def test_network_printer_without_slicer_says_what_to_do():
+    from forge import machines
+    with pytest.raises(machines.MachineError, match="Open in my slicer"):
+        machines.send_to_printer("lamp", b"3mf", {"kind": "octoprint", "url": "http://x", "slicer": ""})
+
+
+def test_uploads_over_the_limit_are_refused(monkeypatch):
+    from fastapi.testclient import TestClient
+    from forge import web
+    monkeypatch.setattr(web, "MAX_UPLOAD", 1000)
+    c = TestClient(web.app)
+    assert c.post("/api/vbuild", content=b"x" * 2000).status_code == 413
+
+
+def test_a_full_queue_answers_busy(monkeypatch):
+    from fastapi.testclient import TestClient
+    from forge import web
+    monkeypatch.setattr(web, "MAX_QUEUED", 0)
+    monkeypatch.setattr(web, "MAX_JOBS", 1)
+    monkeypatch.setitem(web.jobs, "held", {"state": "running", "log": [], "started": 0})
+    r = TestClient(web.app).post("/api/build", json={"idea": "a lamp", "provider": "offline"})
+    assert r.status_code == 429
+
+
+def test_status_and_manifest_carry_the_version():
+    from fastapi.testclient import TestClient
+    from forge import __version__, vbuild, web
+    assert TestClient(web.app).get("/api/status").json()["version"] == __version__
+    man, _ = vbuild.read(pipeline.bundle(offline("a button")))
+    assert man["generator"] == f"Forge {__version__}"

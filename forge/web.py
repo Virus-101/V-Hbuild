@@ -24,6 +24,7 @@ from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from . import __version__
 from . import compile as fwcompile
 from . import llm, machines, pipeline, vbuild
 
@@ -33,7 +34,12 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 KEEP = 50
 MAX_JOBS = int(os.environ.get("FORGE_MAX_JOBS", "2"))
-MAX_UPLOAD = vbuild.MAX_TOTAL
+# Builds waiting for a slot; past this a new build gets "busy" rather than a thread.
+MAX_QUEUED = int(os.environ.get("FORGE_MAX_QUEUED", "20"))
+# A generated .vbuild is a few hundred KB; uploads are capped well below the
+# format's own limit so a public server cannot be filled from outside.
+MAX_UPLOAD = int(os.environ.get("FORGE_MAX_UPLOAD_MB", "32")) * 1024 * 1024
+MAX_HELD = int(os.environ.get("FORGE_MAX_HELD_MB", "512")) * 1024 * 1024
 DESKTOP_TOKEN: str | None = None        # set by desktop.py
 
 builds: "OrderedDict[str, dict]" = OrderedDict()    # id -> {"manifest", "files", "result"?}
@@ -46,7 +52,9 @@ def _remember(entry: dict) -> str:
     build_id = secrets.token_urlsafe(9)
     with _lock:
         builds[build_id] = entry
-        while len(builds) > KEEP:
+        # Drop the oldest builds past the count or the memory budget (never the new one).
+        while len(builds) > 1 and (len(builds) > KEEP or
+                                   sum(len(b["data"]) * 2 for b in builds.values()) > MAX_HELD):
             builds.popitem(last=False)
     return build_id
 
@@ -72,7 +80,7 @@ def viewer():
 
 @app.get("/api/status")
 def status():
-    return {"models": llm.status(), "compiler": fwcompile.available(),
+    return {"version": __version__, "models": llm.status(), "compiler": fwcompile.available(),
             "desktop": DESKTOP_TOKEN is not None}
 
 
@@ -131,6 +139,9 @@ def build(body: dict = Body(...)):
         raise HTTPException(400, "Unknown provider.")
     job_id = secrets.token_urlsafe(9)
     with _lock:
+        waiting = sum(1 for j in jobs.values() if j["state"] in ("queued", "running"))
+        if waiting >= MAX_JOBS + MAX_QUEUED:
+            raise HTTPException(429, "Forge is busy with other builds. Try again in a minute.")
         jobs[job_id] = {"state": "queued", "log": [], "started": time.time()}
         while len(jobs) > KEEP:
             jobs.popitem(last=False)
@@ -173,9 +184,16 @@ def build_file(build_id: str, path: str):
 @app.post("/api/vbuild")
 async def upload(request: Request):
     """Open a .vbuild someone already has (the viewer's drop zone)."""
-    data = await request.body()
-    if len(data) > MAX_UPLOAD:
-        raise HTTPException(413, "File too large.")
+    too_big = HTTPException(413, f"File too large (limit {MAX_UPLOAD // (1024 * 1024)} MB).")
+    if int(request.headers.get("content-length") or 0) > MAX_UPLOAD:
+        raise too_big
+    chunks, size = [], 0
+    async for chunk in request.stream():      # never hold more than the limit in memory
+        size += len(chunk)
+        if size > MAX_UPLOAD:
+            raise too_big
+        chunks.append(chunk)
+    data = b"".join(chunks)
     try:
         man, files = vbuild.read(data)
     except vbuild.VbuildError as e:

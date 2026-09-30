@@ -116,6 +116,10 @@ def build(plan: dict) -> Design:
         else:
             chosen.append((part, item.get("role") or part.does))
 
+    if not chosen and not issues:
+        issues.append(Issue("error", "The plan has no parts. Choose at least one part that "
+                                     "does what the idea asks.", True))
+
     if any(p.id == "pump-5v" for p, _ in chosen) and not any(p.id == "relay-1ch" for p, _ in chosen):
         chosen.append((PARTS["relay-1ch"], "switches the pump"))
         issues.append(Issue("info", "Added a relay: the pump draws more than a GPIO can switch."))

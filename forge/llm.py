@@ -90,13 +90,31 @@ class Local:
                    "stream": False, "options": options}
         try:
             body = self._post("/api/chat", payload)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise ProviderError(f"The model {self.model} is not installed in Ollama. "
+                                    f"Run: ollama pull {self.model}")
+            # A 500 is usually Ollama's GPU runner crashing while loading the
+            # model; retry on CPU once and stay there.
+            if e.code >= 500 and not self._force_cpu:
+                self._force_cpu = True
+                return self._chat(messages, schema, max_tokens)
+            raise ProviderError(f"Ollama answered {e.code} for {self.model}.")
+        except TimeoutError:
+            raise ProviderError(f"The local model took longer than {TIMEOUT:.0f} s. A smaller "
+                                f"model, or FORGE_LLM_TIMEOUT, will help.")
         except (urllib.error.URLError, OSError) as e:
-            # Ollama's GPU runner can crash loading a model on some machines;
-            # retry on CPU and stay there.
-            if self._force_cpu:
-                raise ProviderError(f"The local model is not reachable at {self.url}: {e}")
-            self._force_cpu = True
-            return self._chat(messages, schema, max_tokens)
+            reason = getattr(e, "reason", e)
+            if isinstance(reason, ConnectionRefusedError):
+                raise ProviderError(f"Ollama is not running at {self.url}. Start it, or pick "
+                                    "another planner.")
+            if isinstance(reason, TimeoutError):
+                raise ProviderError(f"The local model took longer than {TIMEOUT:.0f} s.")
+            # A connection dropped mid-request is the other face of a crashed runner.
+            if not self._force_cpu:
+                self._force_cpu = True
+                return self._chat(messages, schema, max_tokens)
+            raise ProviderError(f"The local model is not reachable at {self.url}: {e}")
         return (body.get("message") or {}).get("content") or ""
 
     def structured(self, system: str, user: str, out: type[BaseModel],

@@ -9,6 +9,6 @@ numpy>=1.26
 networkx>=3.0      # trimesh's 3MF exporter
 lxml>=5.0          # trimesh's 3MF exporter
 # Merging ESP32 images (and flashing them from the desktop app)
-esptool>=4.8
+esptool>=5.0      # the dash-style commands (merge-bin, write-flash) are v5
 # Optional second model; local models need nothing but Ollama
 anthropic>=1.0
