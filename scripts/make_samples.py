@@ -63,7 +63,7 @@ SAMPLES = {
 
 class Scripted:
     """Answers the planner and firmware calls from the plan and rules above."""
-    label = "example plan"
+    label = "a hand-written example"
 
     def __init__(self, sample):
         self.sample = sample
