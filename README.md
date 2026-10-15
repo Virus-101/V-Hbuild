@@ -2,14 +2,29 @@
 
 You describe a device in plain words, for example *"a plant monitor that waters
 my basil when the soil is dry"*. V-Hbuild designs it with a **local AI model** and hands you
-a **`.vbuild` file**. Open that file and you watch the device being built: the
-enclosure prints layer by layer, each part drops into place, the wires draw
-themselves to their pins, the board is flashed, and the lid closes.
+a **`.vbuild` file**. Open that file and you watch the complete device being
+built: its cover is made, the ports and connectors go into the wall, each part
+drops into place, the wires draw themselves to their pins, the board is
+flashed, and the lid closes.
+
+Every device gets a **cover** for the machine you have, all three in the same file:
+
+- **Filament 3D printer:** shell and lid as a 3MF any slicer opens, or G-code
+  sent straight to OctoPrint or Klipper.
+- **Resin printer (MSLA):** the same cover with a tighter lid fit, as STL for
+  Chitubox, Lychee or any resin slicer.
+- **Laser cutter:** six finger-jointed panels on one sheet of 3 mm plywood or
+  acrylic, as SVG and DXF with the kerf already allowed for.
+
+Whatever has to pass through the cover gets a real **panel part**: the USB
+opening for the board, the charger's USB-C socket, a GX12 connector for each
+probe that lives outside, a PG7 gland for each load cable, and a power switch
+on battery builds. They are in the bill of materials, cut into the cover, and
+wired in the 3D model.
 
 The same file drives the real machines:
 
-- **The 3D printer** gets the enclosure: a 3MF any slicer opens, or G-code sent
-  straight to OctoPrint or Klipper.
+- **The printer or cutter** gets the cover files above.
 - **The board** gets the firmware: a compiled image flashed over USB, or a UF2
   file for the Pico W.
 
@@ -17,13 +32,13 @@ The same file drives the real machines:
 idea ─► the model plans (parts only) ─► engine checks the electronics ─► replan if rejected
                                             │
       firmware (compiled) ◄─────────────────┤
-      enclosure (STL / 3MF, exact booleans) ◄┤
+      cover + ports (3MF, STL, SVG / DXF) ◄──┤
       3D assembly (GLB) + build steps ◄──────┘
                                             ▼
                                      device.vbuild
                         ┌───────────────────┼────────────────────┐
-                  3D viewer            3D printer          microcontroller
-          (web or desktop app)  (3MF / OctoPrint / Klipper)  (USB flash / UF2)
+                  3D viewer      printer / resin / laser     microcontroller
+          (web or desktop app)  (3MF, STL, SVG; OctoPrint)  (USB flash / UF2)
 ```
 
 ## Three ways to use it
@@ -50,6 +65,8 @@ The desktop app does everything the platform does, and adds the machines:
 
 - **Print enclosure** slices the 3MF and sends it to OctoPrint, Klipper, or a folder.
 - **Open in my slicer** hands the 3MF to the slicer you already use.
+- For a resin or laser-cut cover, pick it under **Cover made on** in the viewer:
+  the button then hands the STL or the cut sheet to the program that opens it.
 - **Flash board** writes the firmware over USB.
 
 Printer and model settings live under **Settings**. The Windows installer
@@ -97,7 +114,7 @@ idea → plan example to fine-tune on.
 
 ## The `.vbuild` file
 
-A zip holding a manifest and standard files: GLB, 3MF, STL, the firmware
+A zip holding a manifest and standard files: GLB, 3MF, STL, SVG and DXF, the firmware
 image, the PlatformIO source, the BOM and the wiring table. The full spec is in
 [docs/vbuild-format.md](docs/vbuild-format.md).
 
@@ -109,7 +126,7 @@ image, the PlatformIO source, the BOM and the wiring table. The full spec is in
 | Compiled firmware in the file | [PlatformIO](https://platformio.org) (`pip install platformio`) on the machine that builds. The Docker image includes it. Without it, the file ships the source |
 | Printing from the app | A slicer with a command line (PrusaSlicer, Orca), plus OctoPrint or Moonraker, or just a folder. Without a slicer, "Open in my slicer" still works |
 | Flashing from the app | A USB cable, and the board's USB driver (CP210x or CH340 on many ESP32 boards). For the Pico W, hold BOOTSEL while plugging in |
-| Building the device | The parts in `bom.csv` (about $20–50) and a 3D printer or print service |
+| Building the device | The parts in `bom.csv` (about $20–50), and a filament or resin printer, a laser cutter, or a service that runs one |
 
 ## Project layout
 
@@ -120,7 +137,7 @@ image, the PlatformIO source, the BOM and the wiring table. The full spec is in
 | `vhbuild/planner.py` | idea → plan, plus the offline keyword planner |
 | `vhbuild/engine.py` | pins, addresses, power, passives, rule checks |
 | `vhbuild/firmware.py`, `vhbuild/compile.py` | firmware source → flashable image |
-| `vhbuild/enclosure.py`, `vhbuild/geometry.py` | box layout and cutouts → OpenSCAD, STL, 3MF, GLB |
+| `vhbuild/enclosure.py`, `vhbuild/geometry.py` | box layout, ports and cutouts → OpenSCAD, STL, 3MF, laser SVG / DXF, GLB |
 | `vhbuild/vbuild.py` | the `.vbuild` writer and safe reader |
 | `vhbuild/machines.py` | USB flashing, UF2 drives, OctoPrint / Moonraker / folder, slicing |
 | `vhbuild/web.py` | the server: build jobs, files, desktop-only machine API |
@@ -139,7 +156,8 @@ The suite covers:
 
 - the engine rules
 - the local model's requests (schema, retry, CPU fallback) against a stand-in Ollama
-- geometry: watertight meshes, and lid holes that line up after the flip
+- geometry: watertight meshes, lid holes that line up after the flip, laser
+  panels that interlock without overlapping, ports cut below the lid lip
 - the `.vbuild` reader (checksums, zip-slip)
 - OctoPrint and Moonraker uploads against a local stand-in printer
 - UF2 and esptool flashing
@@ -152,8 +170,12 @@ The suite covers:
 - **Modules and wires, not a custom PCB.** Everything is built from ready-made
   modules and jumper wires. The wire list in `design.json` would be the starting
   point for a PCB.
-- **The box is simple.** The enclosure is a packed rectangular box. Check the
-  fit before a long print.
+- **The box is simple.** The cover is a packed rectangular box, with the
+  ports on one end wall. Check the fit before a long print; the size check
+  assumes a 220 mm filament printer, a 218 x 122 mm resin plate and a
+  300 x 200 mm laser bed.
+- **Board standoffs are not drilled.** In the laser-cut box the board sits on
+  3 mm standoffs or foam pads you fix yourself.
 - **Wire drawings are schematic.** Pin positions on the 3D board are
   illustrative; `wiring.md` is the authority.
 - **A small model makes weaker choices** than a large one. The engine keeps those
@@ -162,7 +184,7 @@ The suite covers:
 
 ## Website
 
-`site/` is the project website: a landing page, three example builds and the
+`site/` is the project website: a landing page, four example builds and the
 3D viewer, all static. `netlify.toml` builds it (`python3 scripts/build_site.py`
  into `site-dist/`), so connecting the repository to Netlify publishes it. The
 examples are regenerated with `python scripts/make_samples.py`.

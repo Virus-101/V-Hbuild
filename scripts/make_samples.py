@@ -58,6 +58,20 @@ SAMPLES = {
         "rules": [{"every_seconds": 60, "variable": "always", "compare": "none",
                    "then": [{"do": "serial.print", "text": "{s1_temp} C, {s1_hum} %, {s1_hpa} hPa"}]}],
     },
+    "pond-probe": {
+        "idea": "A battery-powered pond thermometer with a waterproof probe, a small screen and an on/off switch",
+        "plan": {"name": "Pond Probe", "board_id": "esp32-c3-devkitm-1", "power": "lipo",
+                 "summary": "Runs on a rechargeable battery and shows the pond's temperature once a minute. "
+                            "The probe unplugs from the box; the switch turns it off.",
+                 "low_power": True,
+                 "parts": [{"part_id": "ds18b20", "role": "measures the water temperature"},
+                           {"part_id": "ssd1306", "role": "shows the temperature"}],
+                 "behavior": ["Every minute, show the water temperature on the screen"],
+                 "assumptions": [], "out_of_scope": []},
+        "rules": [{"every_seconds": 60, "variable": "always", "compare": "none",
+                   "then": [{"do": "DS1.show", "text": "Pond {s1_temp} C"},
+                            {"do": "serial.print", "text": "Pond {s1_temp} C"}]}],
+    },
 }
 
 

@@ -50,7 +50,7 @@ class Part:
     i2c_addr: tuple[int, ...] = ()  # first is the default, the rest are strap options
     addr_strap: str = ""            # how to move to the next address
     out_5v: bool = False            # drives its output at 5 V when supplied from 5 V
-    panel: str = ""                 # what the enclosure needs: window, vent, dome, twin_holes, cable, button, slot
+    panel: str = ""                 # what the enclosure needs: window, vent, dome, twin_holes, cable, button, slot, usb, switch
     lib_deps: tuple[str, ...] = ()
     notes: str = ""
 
@@ -194,6 +194,9 @@ PARTS: dict[str, Part] = {p.id: p for p in [
     Part("mt3608", "MT3608 boost converter, set to 5.0 V", "power",
          "makes 5 V from a LiPo for parts that need it", "power", "", 0, 0,
          (37, 17, 6), 1.50, notes="Trim to 5.0 V with a meter before connecting."),
+    Part("rocker-switch", "KCD11 mini rocker switch, panel mount (13 x 8.5 mm cut-out)", "power",
+         "turns the battery supply on and off", "power", "", 0, 0, (15, 10, 18), 0.40,
+         panel="switch"),
     Part("psu-5v2a", "5 V 2 A USB wall adapter + cable", "power",
          "external supply for high-current 5 V parts", "power", "", 0, 0,
          (0, 0, 0), 7.00),
@@ -210,7 +213,7 @@ PASSIVES = {
 }
 
 POWER_OPTIONS = ("usb", "usb_adapter", "lipo")
-POWER_PARTS = {"lipo-2000", "tp4056", "mt3608", "psu-5v2a"}
+POWER_PARTS = {"lipo-2000", "tp4056", "mt3608", "rocker-switch", "psu-5v2a"}
 USB_BUDGET_MA = 500       # USB 2.0 port, what a laptop will promise
 ADAPTER_BUDGET_MA = 2000
 

@@ -403,8 +403,131 @@ def test_scad_and_meshes_come_from_the_same_cuts():
     d = engine.build(plan("pir-hcsr501", "sht31", "ds18b20"))
     b = enclosure.box(d)
     scad = enclosure.scad(d)
-    assert scad.count("// cable gland") == sum(1 for c in b.cuts if "cable gland" in c.note)
+    port_cuts = [c for c in b.cuts if c.note.startswith("J1 ")]
+    assert len(port_cuts) == 1 and scad.count("// J1 socket for") == 1
     assert "mirror([0, 1, 0])" in scad
+
+
+# --- covers and ports -------------------------------------------------------------
+
+def test_outside_parts_get_panel_connectors_and_batteries_a_switch():
+    d = engine.build(plan("ds18b20", "pump-5v", "ssd1306", power="lipo"))
+    b = enclosure.box(d)
+    kinds = {p.serves: p.kind for p in b.ports}
+    probe, pump = d.parts("ds18b20")[0], d.parts("pump-5v")[0]
+    switch = d.parts("rocker-switch")[0]
+    assert kinds[probe.ref] == "gx12" and kinds[pump.ref] == "gland" and kinds[switch.ref] == "rocker"
+    assert not d.parts("relay-1ch")[0].ref in kinds          # the relay switches the pump: no extra hole
+    # Every port is cut through the connector wall, below the lid lip, inside the box.
+    L, W, H = b.inner
+    for p in b.ports:
+        assert sum(1 for c in b.cuts if c.note.startswith(p.ref + " ")) == 1
+        assert 0 < p.y < W and p.z + 6.5 <= H - enclosure.LID_LIP
+    # The switch breaks the battery's + line, and the connectors are in the BOM.
+    charger = d.parts("tp4056")[0]
+    assert (f"{charger.ref} OUT+", f"{switch.ref} IN", "the switch breaks the + line") in d.wires
+    rows = {r["ref"]: r for r in pipeline.bom_rows(d)}
+    assert "GX12" in rows[next(p.ref for p in b.ports if p.kind == "gx12")]["part"]
+    assert switch.ref in rows
+
+
+def test_the_charger_usb_socket_sits_at_the_wall():
+    d = engine.build(plan("bme280", power="lipo"))
+    b = enclosure.box(d)
+    charger = next(p for p in b.placed if p.ref == d.parts("tp4056")[0].ref)
+    assert charger.x == 0
+    cy = enclosure.WALL + charger.y + charger.d / 2
+    assert any(c.at[0] == 0 and abs(c.at[1] + 6 - cy) < 1e-6 for c in b.cuts if "USB" in c.note)
+
+
+def test_every_cover_is_made_and_fits_the_same_inside():
+    from vhbuild import geometry
+    d = engine.build(plan("ssd1306", "pir-hcsr501", "soil-capacitive", "button"))
+    g = geometry.build(d)
+    assert g["watertight"]
+    assert set(g["covers"]) == {"fdm", "resin", "laser"}
+    boxes = {p: enclosure.box(d, p) for p in enclosure.PROCESSES}
+    assert len({b.inner for b in boxes.values()}) == 1
+    assert boxes["resin"].fit < boxes["fdm"].fit
+    names = set(geometry.load_glb(g["assembly.glb"]).graph.nodes_geometry)
+    assert {"shell", "lid", "resin_shell", "resin_lid"} | {f"laser_{n}" for n in geometry.PANELS} <= names
+    assert {p.ref for p in boxes["fdm"].ports} <= names
+    svg = g["laser/panels.svg"].decode()
+    assert all(f'<g id="{n}">' in svg for n in geometry.PANELS) and 'width="' in svg
+    dxf = g["laser/panels.dxf"].decode()
+    assert dxf.startswith("0\nSECTION") and dxf.rstrip().endswith("EOF") and dxf.count("POLYLINE") >= 6
+    for proc in ("fdm", "resin", "laser"):
+        assert g["covers"][proc]["fits"] is True
+
+
+def test_laser_panels_interlock_without_overlap():
+    from manifold3d import Manifold
+    from vhbuild import geometry
+    d = engine.build(plan("ssd1306", "bme280", "ds18b20"))
+    b = enclosure.box(d, "laser")
+    panels = geometry.laser_panels(b)
+    names = list(panels)
+    for i, a in enumerate(names):
+        assert panels[a].genus() >= 0 and panels[a].volume() > 0
+        for other in names[i + 1:]:
+            assert (panels[a] ^ panels[other]).volume() < 1e-6, (a, other)
+    # Together they close the box: the solid walls fill the outer shell exactly,
+    # less the holes cut in them.
+    Lo, Wo, Ho = b.outer
+    T = b.wall
+    whole = Manifold.cube([Lo, Wo, Ho + T]) - Manifold.cube([Lo - 2 * T, Wo - 2 * T, Ho - T]).translate([T, T, T])
+    together = Manifold.batch_boolean(list(panels.values()), __import__("manifold3d").OpType.Add)
+    assert together.volume() <= whole.volume() + 1e-6
+    assert together.volume() > whole.volume() - sum(
+        (c.d ** 2 * 0.8 * T) if c.kind == "cyl" else c.size[0] * c.size[1] * c.size[2] for c in b.cuts) - 1
+    # The top lifts straight off: nothing of any wall sits above its underside's tabs.
+    top = panels["top"]
+    assert all((panels[n] ^ top.translate([0, 0, 5])).volume() < 1e-6 for n in names if n != "top")
+
+
+def test_manifest_swaps_the_cover_steps_and_routes_wires_through_ports():
+    from vhbuild import vbuild
+    r = offline("a plant monitor that waters the basil when the soil is dry")
+    man, files = vbuild.read(pipeline.bundle(r))
+    assert man["cover"] == "fdm" and set(man["covers"]) == {"fdm", "resin", "laser"}
+    for proc, c in man["covers"].items():
+        assert c["make"]["cover"] == "make" and c["close"]["cover"] == "close"
+        for n in c["nodes"]:
+            assert n in {"shell", "lid", "resin_shell", "resin_lid"} or n.startswith("laser_")
+        assert all(f in files for f in man["machines"][c["machine"]]["files"])
+    assert set(man["covers"]["laser"]["poses"]) == {f"laser_{n}" for n in
+                                                    ("bottom", "front", "back", "left", "right", "top")}
+    assert man["steps"][1]["title"] == "Fit the ports and connectors"
+    probe = next(ref for ref, n in man["nodes"].items() if n.get("outside") and n.get("port")
+                 and man["nodes"][n["port"]]["port"] == "gx12")
+    port = man["nodes"][man["nodes"][probe]["port"]]
+    signal = [w for w in man["wires"] if w["ref"] == probe and not w.get("cable")]
+    assert signal and all(w["points"][0] == port["inner"] for w in signal)
+    lead = [w for w in man["wires"] if w["ref"] == probe and w.get("cable")]
+    assert len(lead) == 1 and lead[0]["points"][-1] == port["outer"]
+    ids = {w["id"] for w in man["wires"]}
+    listed = [i for s in man["steps"] for i in s.get("wires", [])]
+    assert sorted(listed) == sorted(ids)                  # every wire is drawn, once
+    readme = files["README.md"].decode()
+    assert "## The cover" in readme and "Laser cutter" in readme and "## Ports and connectors" in readme
+
+
+def test_desktop_opens_resin_and_laser_files(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+    from vhbuild import machines, web
+    opened = []
+    monkeypatch.setattr(machines, "open_with_default_app", lambda p: opened.append(p))
+    monkeypatch.setattr(web, "DESKTOP_TOKEN", "secret")
+    monkeypatch.setattr(web.tempfile, "gettempdir", lambda: str(tmp_path))
+    c = TestClient(web.app)
+    bid = c.post("/api/vbuild", content=pipeline.bundle(offline("a lamp with a button"))).json()["id"]
+    h = {"X-VHbuild-Token": "secret"}
+    r = c.post("/api/machines/print", json={"build": bid, "cover": "laser"}, headers=h)
+    assert r.status_code == 200 and r.json()["ok"]
+    assert opened[-1].name == "panels.svg" and (opened[-1].parent / "panels.dxf").exists()
+    r = c.post("/api/machines/print", json={"build": bid, "cover": "resin"}, headers=h)
+    assert opened[-1].name == "shell.stl" and (opened[-1].parent / "lid.stl").exists()
+    assert c.post("/api/machines/print", json={"build": bid, "cover": "../x"}, headers=h).status_code == 400
 
 
 # --- the .vbuild file -----------------------------------------------------------
@@ -417,14 +540,14 @@ def test_vbuild_round_trips_and_describes_its_machines():
     from vhbuild import vbuild
     r = offline("a motion alarm with a buzzer and a screen")
     man, files = vbuild.read(pipeline.bundle(r))
-    assert man["format"] == "vbuild" and man["version"] == 1
+    assert man["format"] == "vbuild" and man["version"] == 2
     assert man["model"] in files and "enclosure/print_plate.3mf" in files
     assert set(man["files"]) == set(files)
     assert man["steps"][0]["action"] == "print" and man["steps"][-1]["action"] == "close"
     shown = {n for s in man["steps"] for n in s.get("show", [])}
     assert {"shell", "lid", "U1"} <= shown
     assert man["machines"]["board"]["file"] is None       # compile was off
-    assert all(len(w["points"]) == 4 for w in man["wires"])
+    assert all(len(w["points"]) == (5 if w.get("cable") else 4) for w in man["wires"])
 
 
 def test_vbuild_rejects_damage_and_unsafe_paths():
@@ -778,7 +901,9 @@ def test_website_build_has_the_viewer_and_playable_samples(tmp_path, monkeypatch
     assert (out / "static/vendor/three.module.min.js").exists()
     assert not (out / "static/index.html").exists()        # the app page is not part of the site
     samples = sorted((out / "samples").glob("*.vbuild"))
-    assert len(samples) == 3
+    assert len(samples) == 4
     for s in samples:
         man, files = vbuild.read(s.read_bytes())
         assert man["model"] in files and man["machines"]["board"]["file"] in files
+        assert man["version"] == vbuild.VERSION and set(man["covers"]) == {"fdm", "resin", "laser"}
+        assert all(c["fits"] for c in man["covers"].values()), s.name

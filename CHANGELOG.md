@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.4.0
+
+Complete devices: every build now comes with its cover, for three kinds of
+machine, and every port and connector it needs.
+
+- **Covers for three machines.** Each `.vbuild` carries the same cover three ways:
+  shell and lid for a filament printer (3MF/STL), the same with a tighter lid
+  fit for a resin printer (STL), and six finger-jointed panels for a laser
+  cutter (SVG and DXF, 3 mm sheet, kerf allowed for, the top lifts off). All
+  three hold the parts in the same places. Each says whether it fits a typical
+  machine's build volume or bed.
+- **Ports and connectors.** Probes that live outside plug into a GX12 panel
+  socket, load cables come in through a PG7 gland, battery builds get a panel
+  rocker switch in the + line, and the charger's USB-C socket now sits at the
+  wall with its own opening. They are cut into the cover, listed in the BOM
+  and the README, and wired in the 3D model, including each outside part's
+  own lead to its port.
+- **The viewer** has a "Cover made on" picker. It shows the filament print
+  layer by layer, the resin print growing from its build plate and turning
+  over, or the panels being laser-cut flat and folding into a box; then the
+  ports slide into the wall. The download buttons follow the chosen cover.
+- **Desktop app:** for a resin or laser cover, the machine button saves the
+  files and opens them in the program your computer uses for them.
+- **Format version 2.** `covers`, port nodes and wire ids are new; version 1
+  files still open. See `docs/vbuild-format.md`.
+- A fourth example, *Pond Probe*: a battery thermometer with a plug-in probe
+  and an on/off switch.
+
+Fixes
+- The charger's USB socket could end up in the middle of the box while its
+  opening was cut in the end wall. It is now placed against that wall.
+- Wall slots narrower than the wall (vents in a 3 mm panel) were cut too wide.
+
 ## 0.3.0
 
 - The project is named V-Hbuild everywhere: the app, the installer

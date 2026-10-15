@@ -67,7 +67,7 @@ def run(idea: str, provider=AUTO, compile_firmware: bool | None = None, log=prin
     log("Building the enclosure and the 3D model...")
     geo = geometry.build(design)
     text_files = {
-        "README.md": assembly(design, plan, fw_notes, fw_file, model_notes),
+        "README.md": assembly(design, plan, fw_notes, fw_file, model_notes, geo["covers"]),
         "bom.csv": bom_csv(design),
         "wiring.md": wiring_md(design),
         "design.json": json.dumps({"idea": idea, "plan": plan, "design": design.as_dict()}, indent=2),
@@ -78,7 +78,11 @@ def run(idea: str, provider=AUTO, compile_firmware: bool | None = None, log=prin
     binaries = {"model/assembly.glb": geo["assembly.glb"],
                 "enclosure/print_plate.3mf": geo["print_plate.3mf"],
                 "enclosure/shell.stl": geo["shell.stl"],
-                "enclosure/lid.stl": geo["lid.stl"]}
+                "enclosure/lid.stl": geo["lid.stl"],
+                "enclosure/resin/shell.stl": geo["resin/shell.stl"],
+                "enclosure/resin/lid.stl": geo["resin/lid.stl"],
+                "enclosure/laser/panels.svg": geo["laser/panels.svg"],
+                "enclosure/laser/panels.dxf": geo["laser/panels.dxf"]}
     if fw_file:
         binaries[f"firmware/{fw_file}"] = fw_data
 
@@ -94,6 +98,7 @@ def run(idea: str, provider=AUTO, compile_firmware: bool | None = None, log=prin
         "model_notes": model_notes,
         "firmware_binary": fw_file,
         "volume_cm3": geo["volume_cm3"],
+        "covers": geo["covers"],
         "files": text_files,
     }
     all_files = {**{k: v.encode() for k, v in text_files.items()}, **binaries}
@@ -113,6 +118,8 @@ def bom_rows(d: engine.Design) -> list[dict]:
     for pid, (qty, reason) in d.passives.items():
         name, price = PASSIVES[pid]
         rows.append({"ref": "-", "part": name, "qty": qty, "unit_usd": price, "why": reason})
+    for ref, name, price, why in enclosure.hardware(d):
+        rows.append({"ref": ref, "part": name, "qty": 1, "unit_usd": price, "why": why})
     return rows
 
 
@@ -138,8 +145,26 @@ def wiring_md(d: engine.Design) -> str:
     return "\n".join(out) + "\n"
 
 
+def _cover_md(covers: dict) -> list[str]:
+    """The three ways to make the cover, and whether this one fits the usual machine."""
+    files = {"fdm": "`enclosure/print_plate.3mf` (or `shell.stl` + `lid.stl`)",
+             "resin": "`enclosure/resin/shell.stl` + `lid.stl`",
+             "laser": "`enclosure/laser/panels.svg` (or `.dxf`)"}
+    out = ["## The cover", "",
+           "Make it on whichever machine you have. All three hold the parts in the same places.", "",
+           "| Machine | Files | Material | Size check |", "| --- | --- | --- | --- |"]
+    for proc, p in enclosure.PROCESSES.items():
+        c = covers.get(proc, {})
+        check = c.get("fit_note", "")
+        if proc == "laser" and c.get("sheet_note"):
+            check += " " + c["sheet_note"]
+        out.append(f"| {p.label} | {files[proc]} | {p.material} | {check} |")
+    out += [""] + [f"- **{p.label}:** {p.how}" for p in enclosure.PROCESSES.values()] + [""]
+    return out
+
+
 def assembly(d: engine.Design, plan: dict, fw_notes: list[str], fw_file: str | None = None,
-             model_notes: list[str] = ()) -> str:
+             model_notes: list[str] = (), covers: dict | None = None) -> str:
     bud = d.budget
     out = [f"# {d.name}", "", d.summary, ""]
     problems = [i for i in d.issues if i.severity != "info"]
@@ -169,9 +194,17 @@ def assembly(d: engine.Design, plan: dict, fw_notes: list[str], fw_file: str | N
              if fw_file else
              "4. `cd firmware && pio run -t upload && pio device monitor` - "
              "you should see one JSON line of readings every cycle."),
-            "5. Print `enclosure/print_plate.3mf` (shell and lid) - 0.2 mm layers, no supports, "
-            "PLA indoors or PETG outdoors. The lid prints plate-down.",
-            "6. Move the circuit to perfboard, mount it, close the lid."]
+            "5. Make the cover (see below): print it, resin-print it or laser-cut it.",
+            "6. Fit the ports and connectors in the connector wall, move the circuit to "
+            "perfboard, mount it, close the lid."]
+    out += [""] + _cover_md(covers or {})
+    hw = enclosure.hardware(d)
+    if hw or d.has("rocker-switch"):
+        out += ["## Ports and connectors", "",
+                "All on the connector wall, the end opposite the USB opening:", ""]
+        out += [f"- **{ref}** {name}: {why}" for ref, name, _, why in hw]
+        out += [f"- **{i.ref}** {i.part.name}: {i.role}" for i in d.parts("rocker-switch")]
+        out.append("")
     if d.has("mt3608"):
         out.append("\nSet the MT3608 to 5.0 V with a multimeter **before** connecting anything to it.")
     if d.has("relay-1ch"):

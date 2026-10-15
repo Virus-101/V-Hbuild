@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>V-Hbuild — describe a device, watch it get built</title>
-<meta name="description" content="V-Hbuild turns a one-sentence device idea into parts, wiring, compiled firmware and a printable enclosure, then shows it being built in 3D. Open source, runs on your own machine.">
+<meta name="description" content="V-Hbuild turns a one-sentence device idea into parts, wiring, compiled firmware and a cover with its ports and connectors, for a filament printer, a resin printer or a laser cutter, then shows it being built in 3D. Open source, runs on your own machine.">
 <meta property="og:title" content="V-Hbuild — describe a device, watch it get built">
-<meta property="og:description" content="Parts, wiring, compiled firmware and a printable enclosure from one sentence. Open source; plans with a local AI model.">
+<meta property="og:description" content="Parts, wiring, compiled firmware and a cover for your printer or laser cutter from one sentence. Open source; plans with a local AI model.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23c2410c'/><path d='M7 8h4.2l4.8 12.5L20.8 8H25l-7 17h-4z' fill='white'/></svg>">
 <style>
 :root {
@@ -75,8 +75,9 @@ footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top:
   <header class="hero">
     <h1>Describe a device. Watch it get built.</h1>
     <p>V-Hbuild turns one sentence into the parts list, the wiring, compiled firmware and a
-      3D-printable enclosure, then plays the build in 3D. The desktop app sends the enclosure to
-      your printer and flashes the firmware onto your board.</p>
+      cover with every port and connector it needs, then plays the whole build in 3D. Make the
+      cover on a filament printer, a resin printer or a laser cutter; the desktop app flashes the
+      firmware onto your board.</p>
     <div class="cta">
       <a class="btn" href="https://github.com/Virus-101/V-Hbuild/releases/latest">Download for Windows or macOS</a>
       <a class="btn ghost" href="viewer.html?src=samples/plant-monitor.vbuild">See an example build</a>
@@ -89,7 +90,8 @@ footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top:
   <div class="wrap">
     <h2>Watch these get built</h2>
     <p class="lead">Each example is a real <code>.vbuild</code> file V-Hbuild produced, with compiled firmware and
-      print-ready enclosure files inside. They play right here in your browser.</p>
+      the cover for all three machines inside. They play right here in your browser: switch
+      “Cover made on” to watch it printed, resin-printed or laser-cut.</p>
     <div class="grid samples">
       <div class="card">
         <h3>Basil Keeper</h3>
@@ -109,6 +111,12 @@ footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top:
         <span class="board">ESP32-C3 · BME280 · OLED</span>
         <a class="btn" href="viewer.html?src=samples/weather-station.vbuild">Watch it built</a>
       </div>
+      <div class="card">
+        <h3>Pond Probe</h3>
+        <p>A battery thermometer: the probe plugs into the box and a switch turns it off.</p>
+        <span class="board">ESP32-C3 · DS18B20 on a GX12 socket · LiPo · USB-C charging</span>
+        <a class="btn" href="viewer.html?src=samples/pond-probe.vbuild&amp;cover=laser">Watch it laser-cut</a>
+      </div>
     </div>
   </div>
 </section>
@@ -125,8 +133,10 @@ footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top:
         <p>Pins, I2C addresses, power budget, resistors and level shifting. Bad plans go back to the model with the reasons.</p></div>
       <div class="card"><div class="n">3 · Program</div><h3>Rules become firmware</h3>
         <p>The model describes behaviour as rules; V-Hbuild writes the C++ and compiles it for an ESP32 or a Pico W.</p></div>
-      <div class="card"><div class="n">4 · Build</div><h3>One file for every machine</h3>
-        <p>The <code>.vbuild</code> holds the 3D build, a 3MF for your slicer and the firmware image for your board.</p></div>
+      <div class="card"><div class="n">4 · Cover</div><h3>A cover, ports and all</h3>
+        <p>A box around the parts, with a USB opening, panel sockets for outside probes, cable glands and a power switch where needed.</p></div>
+      <div class="card"><div class="n">5 · Build</div><h3>One file for every machine</h3>
+        <p>The <code>.vbuild</code> holds the 3D build, the cover for a filament printer, a resin printer or a laser cutter, and the firmware for your board.</p></div>
     </div>
   </div>
 </section>
@@ -149,8 +159,8 @@ python -m vhbuild.desktop</pre>
       <ul class="checks">
         <li>A small catalog: 3 boards and 16 modules.</li>
         <li>Ready-made modules and jumper wires, not custom circuit boards.</li>
-        <li>A simple rectangular enclosure; check the fit before a long print.</li>
-        <li>Early software (v0.3). Contributions welcome, especially new parts.</li>
+        <li>A simple rectangular cover with its ports on one end; check the fit before a long print.</li>
+        <li>Early software (v0.4). Contributions welcome, especially new parts.</li>
       </ul>
     </div>
   </div>

@@ -248,7 +248,8 @@ def _power(d: Design) -> None:
     needs_boost = False
     if d.power == "lipo":
         needs_boost = rail_5v > 0 or d.board.vin_range[0] > 3.0
-        auto += [("lipo-2000", "battery"), ("tp4056", "charges the battery from USB")]
+        auto += [("lipo-2000", "battery"), ("tp4056", "charges the battery from USB"),
+                 ("rocker-switch", "power switch")]
         if needs_boost:
             auto.append(("mt3608", "5 V from the battery"))
             if total > BOOST_MAX_MA:
@@ -337,14 +338,17 @@ def _wire(d: Design) -> None:
 
     if d.power == "lipo":
         bat, chg = d.parts("lipo-2000")[0], d.parts("tp4056")[0]
+        sw = d.parts("rocker-switch")[0]
         d.wires.append((f"{bat.ref} +/-", f"{chg.ref} B+/B-", ""))
+        d.wires.append((f"{chg.ref} OUT+", f"{sw.ref} IN", "the switch breaks the + line"))
         if d.has("mt3608"):
             boost = d.parts("mt3608")[0]
-            d.wires.append((f"{chg.ref} OUT+/OUT-", f"{boost.ref} IN+/IN-", ""))
+            d.wires.append((f"{sw.ref} OUT", f"{boost.ref} IN+", ""))
+            d.wires.append((f"{chg.ref} OUT-", f"{boost.ref} IN-", ""))
             d.wires.append((f"{boost.ref} OUT+", "board 5V/VBUS pin", "set to 5.0 V first"))
             d.wires.append((f"{boost.ref} OUT-", "GND", ""))
         else:
-            d.wires.append((f"{chg.ref} OUT+", "board VSYS pin", ""))
+            d.wires.append((f"{sw.ref} OUT", "board VSYS pin", ""))
             d.wires.append((f"{chg.ref} OUT-", "GND", ""))
 
     if "c1000u" in d.passives:

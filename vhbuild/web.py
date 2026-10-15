@@ -238,10 +238,15 @@ def machine_flash(request: Request, body: dict = Body(...)):
 def machine_print(request: Request, body: dict = Body(...)):
     _desktop(request)
     entry = _get(str(body.get("build") or ""))
+    name = Path(entry["filename"]).stem
+    cover = str(body.get("cover") or "fdm")
+    if cover not in ("fdm", "resin", "laser"):
+        raise HTTPException(400, "Unknown cover.")
+    if cover != "fdm":
+        return _open_cover_files(entry, name, cover)
     plate = entry["files"].get("enclosure/print_plate.3mf")
     if plate is None:
         raise HTTPException(400, "This .vbuild has no print plate.")
-    name = Path(entry["filename"]).stem
     cfg = machines.load_settings()["printer"]
     try:
         if body.get("open_in_slicer") or cfg["kind"] == "none":
@@ -252,6 +257,25 @@ def machine_print(request: Request, body: dict = Body(...)):
         return {"ok": True, "log": machines.send_to_printer(name, plate, cfg)}
     except (machines.MachineError, OSError) as e:
         return JSONResponse({"ok": False, "log": str(e)}, status_code=502)
+
+
+def _open_cover_files(entry: dict, name: str, cover: str):
+    """Resin and laser covers: hand the files to whatever opens them on this computer."""
+    machine = (entry["manifest"].get("covers") or {}).get(cover, {}).get("machine")
+    paths = ((entry["manifest"].get("machines") or {}).get(machine) or {}).get("files") or []
+    paths = [p for p in paths if p in entry["files"]]
+    if not paths:
+        raise HTTPException(400, f"This .vbuild has no files for a {cover} cover.")
+    folder = Path(tempfile.gettempdir()) / f"{name}-{cover}"
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        for p in paths:
+            (folder / Path(p).name).write_bytes(entry["files"][p])
+        machines.open_with_default_app(folder / Path(paths[0]).name)
+    except (machines.MachineError, OSError) as e:
+        return JSONResponse({"ok": False, "log": str(e)}, status_code=502)
+    names = ", ".join(Path(p).name for p in paths)
+    return {"ok": True, "log": f"Saved {names} to {folder} and opened {Path(paths[0]).name}."}
 
 
 @app.get("/api/settings")

@@ -1,6 +1,6 @@
 [project]
 name = "vhbuild"
-version = "0.3.0"
+version = "0.4.0"
 description = "Describe a device; get a .vbuild your printer and board can build."
 requires-python = ">=3.10"
 license = "MIT"

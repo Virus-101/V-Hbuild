@@ -1,9 +1,11 @@
 // V-Hbuild viewer: plays a .vbuild's assembly steps over its 3D model.
 //
-// The GLB has one node per part (named by ref, plus "shell" and "lid"); the
+// The GLB has one node per part (named by ref), one per port, and the nodes
+// of every cover ("shell"/"lid", "resin_shell"/"resin_lid", "laser_*"). The
 // manifest says which step reveals which node and wire. Each step animates:
-// the shell prints layer by layer, parts drop into place, wires draw
-// themselves from part to pin, the board pulses while it is flashed, the lid
+// the cover is printed layer by layer, resin-printed hanging from its plate,
+// or laser-cut flat and folded up; ports slide into the wall, parts drop into
+// place, wires draw themselves, the board pulses while it is flashed, the lid
 // closes. Coordinates are millimetres, z up.
 import * as THREE from "three";
 import { OrbitControls } from "/static/vendor/addons/OrbitControls.js";
@@ -18,8 +20,9 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let token = params.get("token") || "";
 try { if (token) sessionStorage.setItem("vhbuild-token", token); else token = sessionStorage.getItem("vhbuild-token") || ""; } catch {}
 
-const DURATION = { print: 3.0, flash: 2.6, close: 1.4, default: 1.6 };
+const DURATION = { print: 3.0, resin: 3.6, laser: 4.2, laser_lid: 1.4, flash: 2.6, close: 1.4, default: 1.6 };
 const HOLD = 0.9;   // seconds to rest on a finished step while playing
+const PANEL_ORDER = ["laser_bottom", "laser_front", "laser_back", "laser_left", "laser_right"];
 
 // --- three.js stage -----------------------------------------------------------
 const stage = $("stage");
@@ -55,42 +58,96 @@ new ResizeObserver(resize).observe(stage);
 
 // --- the build being shown -------------------------------------------------------
 let man = null, files = null, buildId = params.get("build");
-let nodes = {};          // name -> { obj, base: Vector3, step }
+let steps = [];          // man.steps with the chosen cover's first and last step
+let cover = "fdm";
+let nodes = {};          // name -> { obj, base: Vector3, baseQ: Quaternion, step }
 let wires = [];          // { mesh, step, count }
-let cur = 0, t = 0, playing = !reduceMotion, hold = 0, printPlane = null, root = null;
+let cur = 0, t = 0, playing = !reduceMotion, hold = 0, root = null, gltfScene = null, grid = null;
+const planes = { print: new THREE.Plane(new THREE.Vector3(0, 0, -1), 0),
+                 resin: new THREE.Plane(new THREE.Vector3(0, 0, 1), 0),
+                 laser: new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0) };
+const props = {};        // build plate, laser beam: helpers drawn only while they work
 
 function clearScene() {
   if (root) scene.remove(root);
   wires.forEach((w) => scene.remove(w.mesh));
-  nodes = {}; wires = []; root = null;
+  nodes = {}; wires = []; root = null; grid = null;
 }
 
-function frame(object, outer) {
-  // Frame everything, including probes and pumps that sit outside the box.
-  const bounds = new THREE.Box3().setFromObject(object);
+function coverNodes(id) { return man.covers?.[id]?.nodes || (id === "fdm" ? ["shell", "lid"] : []); }
+function allCoverNodes() {
+  const out = new Set(["shell", "lid"]);
+  Object.keys(man.covers || {}).forEach((id) => coverNodes(id).forEach((n) => out.add(n)));
+  return out;
+}
+
+function frame() {
+  // Frame everything: probes outside, the resin plate, the laser cutting sheet.
+  const [Lo, Wo, Ho] = man.box.outer;
+  const bounds = new THREE.Box3();
+  for (const [name, n] of Object.entries(nodes)) {
+    if (allCoverNodes().has(name) && !coverNodes(cover).includes(name)) continue;
+    bounds.expandByObject(n.obj);
+  }
+  const c3 = man.covers?.[cover];
+  if (cover === "laser" && c3?.flat_box) {
+    const [[x0, y0], [x1, y1]] = c3.flat_box;
+    bounds.expandByPoint(new THREE.Vector3(x0, y0, 0)).expandByPoint(new THREE.Vector3(x1, y1, 0));
+  }
+  if (cover === "resin") bounds.expandByPoint(new THREE.Vector3(Lo / 2, Wo / 2, Ho + 50));
   const c = bounds.getCenter(new THREE.Vector3());
   const s = bounds.getSize(new THREE.Vector3());
-  const size = Math.max(s.x, s.y, outer[2]);
-  controls.target.set(c.x, c.y, outer[2] / 3);
+  const size = Math.max(s.x, s.y, Ho);
+  controls.target.set(c.x, c.y, Math.min(c.z, Ho / 2));
   // High enough to see down into the open box.
-  camera.position.set(c.x + size * 0.35, c.y - size * 0.95, outer[2] + size * 1.25);
+  camera.position.set(c.x + size * 0.35, c.y - size * 0.95, Ho + size * 1.25);
   sun.position.set(c.x + size * 2, c.y - size * 1.5, size * 3);
-  const extent = Math.ceil(Math.max(s.x, s.y) * 1.8 / 10) * 10;
-  const grid = new THREE.GridHelper(extent, extent / 10, 0x999999, 0xbbbbbb);
+  if (grid) root.remove(grid);
+  const extent = Math.ceil(Math.max(s.x, s.y) * 1.6 / 10) * 10;
+  grid = new THREE.GridHelper(extent, extent / 10, 0x999999, 0xbbbbbb);
   grid.rotation.x = Math.PI / 2;
-  grid.position.set(c.x, c.y, -0.05);
+  grid.position.set(c.x, c.y, Math.min(bounds.min.z, 0) - 0.05);
   grid.material.transparent = true; grid.material.opacity = 0.35;
   root.add(grid);
 }
 
-function tube(points, color) {
+function tube(points, color, radius) {
   const path = new THREE.CurvePath();
   for (let i = 0; i < points.length - 1; i++) {
     path.add(new THREE.LineCurve3(new THREE.Vector3(...points[i]), new THREE.Vector3(...points[i + 1])));
   }
-  const geo = new THREE.TubeGeometry(path, 90, 0.55, 6, false);
+  const geo = new THREE.TubeGeometry(path, 90, radius, 6, false);
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.5 }));
   return { mesh, count: geo.index.count };
+}
+
+function makeProps() {
+  const [Lo, Wo, Ho] = man.box.outer;
+  const dark = new THREE.MeshStandardMaterial({ color: 0x55585e, metalness: 0.6, roughness: 0.35 });
+  props.plate = new THREE.Mesh(new THREE.BoxGeometry(Lo + 16, Wo + 16, 3), dark);
+  props.plate.position.set(Lo / 2, Wo / 2, Ho + 46.5);
+  const fb = man.covers?.laser?.flat_box;
+  const depth = fb ? fb[1][1] - fb[0][1] : 100;
+  props.beam = new THREE.Mesh(new THREE.BoxGeometry(0.9, depth + 6, 0.9),
+    new THREE.MeshBasicMaterial({ color: 0xff2a1a }));
+  props.beam.position.set(0, fb ? (fb[0][1] + fb[1][1]) / 2 : 0, 3.4);
+  for (const p of Object.values(props)) { p.visible = false; root.add(p); }
+}
+
+function buildSteps() {
+  const c = man.covers?.[cover];
+  steps = man.steps.map((s) => (s.cover && c?.[s.cover]) ? c[s.cover] : s);
+  const firstStep = {}, wireStep = {};
+  steps.forEach((s, i) => {
+    (s.show || []).forEach((n) => { if (!(n in firstStep)) firstStep[n] = i; });
+    (s.wires || []).forEach((r) => { if (!(r in wireStep)) wireStep[r] = i; });
+  });
+  const others = allCoverNodes();
+  coverNodes(cover).forEach((n) => others.delete(n));
+  for (const [name, n] of Object.entries(nodes)) {
+    n.step = others.has(name) ? Infinity : (firstStep[name] ?? 0);
+  }
+  for (const w of wires) w.step = wireStep[w.key] ?? wireStep[w.ref] ?? 0;
 }
 
 async function show(manifest, fileMap) {
@@ -105,44 +162,70 @@ async function show(manifest, fileMap) {
   const glb = files[man.model];
   if (!glb) throw new Error("This .vbuild has no 3D model.");
   const gltf = await new GLTFLoader().parseAsync(glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), "");
+  gltfScene = gltf.scene;
   root = new THREE.Group();
   root.add(gltf.scene);
   scene.add(root);
 
-  // Which step first shows each node / wire.
-  const firstStep = {}, wireStep = {};
-  man.steps.forEach((s, i) => {
-    (s.show || []).forEach((n) => { if (!(n in firstStep)) firstStep[n] = i; });
-    (s.wires || []).forEach((r) => { if (!(r in wireStep)) wireStep[r] = i; });
-  });
-  const [, , Ho] = man.box.outer;
-  printPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), Ho + 1);
-  for (const name of ["shell", "lid", ...Object.keys(man.nodes)]) {
+  for (const name of new Set([...allCoverNodes(), ...Object.keys(man.nodes)])) {
     const obj = gltf.scene.getObjectByName(name);
     if (!obj) continue;
+    const plane = name === "shell" ? planes.print : name === "resin_shell" ? planes.resin
+      : name.startsWith("laser_") ? planes.laser : null;
     obj.traverse((m) => {
       if (m.isMesh) {
         m.material = m.material.clone();
         m.material.userData.baseOpacity = m.material.opacity;
-        if (name === "shell") m.material.clippingPlanes = [printPlane];
+        if (plane) m.material.clippingPlanes = [plane];
       }
     });
-    nodes[name] = { obj, base: obj.position.clone(), step: firstStep[name] ?? 0 };
+    nodes[name] = { obj, base: obj.position.clone(), baseQ: obj.quaternion.clone(), step: 0 };
   }
   for (const w of man.wires || []) {
-    const { mesh, count } = tube(w.points, w.color);
+    const { mesh, count } = tube(w.points, w.color, w.cable ? 1.6 : 0.55);
     mesh.visible = false;
     scene.add(mesh);
-    wires.push({ mesh, count, step: wireStep[w.ref] ?? 0, ref: w.ref });
+    wires.push({ mesh, count, step: 0, key: w.id ?? w.ref, ref: w.ref });
   }
-  frame(gltf.scene, man.box.outer);
+  makeProps();
+  renderCovers();
+  pickCover(chosenCover(), false);
+}
+
+function chosenCover() {
+  let want = params.get("cover");
+  try { want = want || localStorage.getItem("vhbuild-cover"); } catch {}
+  return man.covers?.[want] ? want : (man.cover || "fdm");
+}
+
+function pickCover(id, remember = true) {
+  cover = man.covers?.[id] ? id : "fdm";
+  if (remember) { try { localStorage.setItem("vhbuild-cover", cover); } catch {} }
+  if ($("cover")) $("cover").value = cover;
+  const c = man.covers?.[cover];
+  const note = $("cover-note");
+  if (note) {
+    note.textContent = c ? (c.fit_note || "") + (c.sheet_note ? " " + c.sheet_note : "") : "";
+    note.className = c && c.fits === false ? "err" : "";
+  }
+  buildSteps();
+  frame();
   renderSteps();
   renderMachines();
   go(0);
 }
 
+function renderCovers() {
+  const row = $("cover-row"), sel = $("cover");
+  const ids = Object.keys(man.covers || {});
+  row.hidden = ids.length < 2;
+  sel.innerHTML = ids.map((id) => `<option value="${id}">${esc(man.covers[id].label)}</option>`).join("");
+}
+$("cover").onchange = (e) => { pickCover(e.target.value); setPlaying(!reduceMotion); };
+
 // --- timeline ----------------------------------------------------------------------
 const ease = (x) => 1 - Math.pow(1 - Math.min(Math.max(x, 0), 1), 3);
+const X = new THREE.Vector3(1, 0, 0);
 
 function setOpacity(obj, k) {
   obj.traverse((m) => {
@@ -157,29 +240,80 @@ function glow(obj, k) {
   obj.traverse((m) => { if (m.isMesh && m.material.emissive) m.material.emissive.setRGB(0.1 * k, 0.9 * k, 0.35 * k); });
 }
 
+// Turn `obj` by `q` about the model point `pivot`, then move it by `offset`.
+function turn(n, q, pivot, offset) {
+  n.obj.quaternion.copy(n.baseQ).premultiply(q);
+  n.obj.position.copy(n.base).add(pivot).add(offset).sub(pivot.clone().applyQuaternion(q));
+}
+
+// A laser panel at k = 0 lies flat on the cutting bed; at k = 1 it is in place.
+function fold(n, pose, k) {
+  const flatQ = new THREE.Quaternion(...pose.quat);
+  const q = flatQ.slerp(new THREE.Quaternion(), k);
+  const center = new THREE.Vector3(...pose.flat_center).lerp(new THREE.Vector3(...pose.center), k);
+  turn(n, q, new THREE.Vector3(...pose.center), center.sub(new THREE.Vector3(...pose.center)));
+}
+
 function apply() {
   if (!man) return;
-  const step = man.steps[cur] || {};
-  const Ho = man.box.outer[2];
+  const step = steps[cur] || {};
+  const [Lo, Wo, Ho] = man.box.outer;
+  const poses = man.covers?.laser?.poses || {};
+  const makeIdx = steps.findIndex((s) => s.cover === "make");
+  const closeIdx = steps.findIndex((s) => s.cover === "close");
+  for (const p of Object.values(props)) p.visible = false;
+  planes.print.constant = Ho + 1;
+  planes.resin.constant = 1e5;
+  planes.laser.constant = 1e5;
+
   for (const [name, n] of Object.entries(nodes)) {
     const { obj, base } = n;
     obj.position.copy(base);
+    obj.quaternion.copy(n.baseQ);
     setOpacity(obj, 1);
     if (n.step > cur) { obj.visible = false; continue; }
     obj.visible = true;
+
+    if (poses[name]) {
+      // Laser panels: cut flat, folded up in the cut step; the top waits for the lid step.
+      let k = 1;
+      if (name === "laser_top") k = cur > closeIdx ? 1 : cur === closeIdx ? ease(t) : 0;
+      else if (cur === makeIdx) k = ease((t - 0.42 - PANEL_ORDER.indexOf(name) * 0.07) / 0.3);
+      fold(n, poses[name], k);
+      if (cur === makeIdx && t < 0.4) {
+        const fb = man.covers.laser.flat_box;
+        const x = fb[0][0] + (fb[1][0] - fb[0][0]) * (t / 0.4);   // the head moves at a steady speed
+        planes.laser.constant = x;
+        props.beam.position.x = x;
+        props.beam.visible = true;
+      }
+      continue;
+    }
     if (n.step < cur) continue;
     // Revealed by the current step: animate it in.
     if (step.action === "print" && name === "shell") {
-      printPlane.constant = Ho * ease(t) + 0.01;
-    } else if (step.action === "close" && name === "lid") {
+      planes.print.constant = Ho * ease(t) + 0.01;
+    } else if (step.action === "resin" && name === "resin_shell") {
+      // Grows down from a build plate, upside down, then turns over into place.
+      const plateZ = Ho + 45, split = 0.7;
+      const k = t < split ? 0 : ease((t - split) / (1 - split));
+      if (t < split) {
+        planes.resin.constant = -(plateZ - Ho * (t / split));   // one layer at a time
+        props.plate.visible = true;
+      }
+      const q = new THREE.Quaternion().setFromAxisAngle(X, Math.PI * (1 - k));
+      turn(n, q, new THREE.Vector3(Lo / 2, Wo / 2, Ho / 2), new THREE.Vector3(0, 0, (plateZ - Ho) * (1 - k)));
+    } else if (step.action === "close" && step.show?.includes(name)) {
       obj.position.z = base.z + (1 - ease(t)) * 70;
       setOpacity(obj, Math.min(1, t * 2));
+    } else if (man.nodes[name]?.port && !man.nodes[name]?.outside) {
+      obj.position.x = base.x + (1 - ease(t * 1.3)) * 45;   // slides in through the wall
+      setOpacity(obj, Math.min(1, t * 3));
     } else {
       obj.position.z = base.z + (1 - ease(t * 1.4)) * 55;
       setOpacity(obj, Math.min(1, t * 3));
     }
   }
-  if (step.action !== "print" && printPlane) printPlane.constant = Ho + 1;
   for (const w of wires) {
     w.mesh.visible = w.step <= cur;
     const k = w.step < cur ? 1 : ease((t - 0.45) / 0.55);
@@ -190,8 +324,8 @@ function apply() {
 
   $("cap-title").textContent = step.title || "";
   $("cap-text").textContent = step.text || "";
-  const last = cur === man.steps.length - 1 && t >= 1;
-  $("badge").textContent = last ? "Built" : `Step ${cur + 1} of ${man.steps.length}`;
+  const last = cur === steps.length - 1 && t >= 1;
+  $("badge").textContent = last ? "Built" : `Step ${cur + 1} of ${steps.length}`;
   $("badge").className = last ? "ok" : "";
   [...$("steps").children].forEach((li, i) => {
     li.classList.toggle("cur", i === cur);
@@ -200,7 +334,7 @@ function apply() {
 }
 
 function go(i, instant = false) {
-  cur = Math.max(0, Math.min(i, man.steps.length - 1));
+  cur = Math.max(0, Math.min(i, steps.length - 1));
   t = instant || reduceMotion ? 1 : 0;
   hold = 0;
   apply();
@@ -216,11 +350,11 @@ function loop(now) {
   const dt = Math.min((now - lastTime) / 1000, 0.1);
   lastTime = now;
   if (man && playing) {
-    const step = man.steps[cur];
+    const step = steps[cur];
     if (t < 1) {
       t = Math.min(1, t + dt / (DURATION[step.action] || DURATION.default));
       apply();
-    } else if (cur < man.steps.length - 1) {
+    } else if (cur < steps.length - 1) {
       hold += dt;
       if (hold > HOLD) go(cur + 1);
     } else {
@@ -237,7 +371,7 @@ requestAnimationFrame(loop);
 function renderSteps() {
   const ol = $("steps");
   ol.innerHTML = "";
-  man.steps.forEach((s, i) => {
+  steps.forEach((s, i) => {
     const li = document.createElement("li");
     li.innerHTML = `<span class="n">${i + 1}</span><span></span>`;
     li.lastChild.textContent = s.title;
@@ -248,7 +382,7 @@ function renderSteps() {
 
 $("play").onclick = () => {
   if (!man) return;
-  if (!playing && cur === man.steps.length - 1 && t >= 1) go(0);
+  if (!playing && cur === steps.length - 1 && t >= 1) go(0);
   setPlaying(!playing);
 };
 $("prev").onclick = () => { if (man) { setPlaying(false); go(cur - 1, true); } };
@@ -266,6 +400,13 @@ async function api(path, opts = {}) {
 }
 
 function esc(s) { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+const COVER_FILES = {
+  fdm: [["enclosure/print_plate.3mf", "Printer file (.3mf)"]],
+  resin: [["enclosure/resin/shell.stl", "Shell (.stl)"], ["enclosure/resin/lid.stl", "Lid (.stl)"]],
+  laser: [["enclosure/laser/panels.svg", "Cut sheet (.svg)"], ["enclosure/laser/panels.dxf", "Cut sheet (.dxf)"]],
+};
+const COVER_VERB = { fdm: "Print enclosure", resin: "Open in resin slicer", laser: "Open cut sheet" };
 
 async function renderMachines() {
   const box = $("machines");
@@ -285,12 +426,13 @@ async function renderMachines() {
       a.href = URL.createObjectURL(new Blob([files[p]]));
       $("m-files").appendChild(a);
     };
-    add("enclosure/print_plate.3mf", "Printer file (.3mf)");
+    (COVER_FILES[cover] || COVER_FILES.fdm).forEach(([p, label]) => add(p, label));
     if (fw) add(fw, "Board firmware");
     return;
   }
+  const fdm = cover === "fdm";
   box.innerHTML = `<h2>Your machines</h2>
-    <div class="row"><button id="m-print">Print enclosure</button><button class="ghost" id="m-slicer">Open in my slicer</button></div>
+    <div class="row"><button id="m-print">${COVER_VERB[cover] || COVER_VERB.fdm}</button>${fdm ? `<button class="ghost" id="m-slicer">Open in my slicer</button>` : ""}</div>
     <div class="row"><select id="m-port" aria-label="Board connection"><option>Looking for boards…</option></select>
       <button id="m-flash" ${fw ? "" : "disabled"}>Flash board</button><button class="ghost" id="m-scan" aria-label="Scan again">&#8635;</button></div>
     ${fw ? "" : `<p class="hint">No compiled firmware in this file.</p>`}
@@ -323,13 +465,13 @@ async function renderMachines() {
     try {
       const r = await api(path, { method: "POST", body: JSON.stringify({ build: await needId(), ...body }) });
       logOut(r.log, r.ok);
-      if (r.ok && path.endsWith("flash")) { go(man.steps.findIndex((s) => s.action === "flash")); setPlaying(true); }
+      if (r.ok && path.endsWith("flash")) { go(steps.findIndex((s) => s.action === "flash")); setPlaying(true); }
     } catch (e) { logOut(e.message, false); }
     btn.disabled = false;
   };
   $("m-scan").onclick = scan;
-  $("m-print").onclick = (e) => run(e.target, "/api/machines/print", {});
-  $("m-slicer").onclick = (e) => run(e.target, "/api/machines/print", { open_in_slicer: true });
+  $("m-print").onclick = (e) => run(e.target, "/api/machines/print", { cover });
+  if (fdm) $("m-slicer").onclick = (e) => run(e.target, "/api/machines/print", { cover, open_in_slicer: true });
   $("m-flash").onclick = (e) => run(e.target, "/api/machines/flash", { target: $("m-port").value });
   scan();
 }
@@ -400,4 +542,8 @@ stage.addEventListener("drop", (e) => {
   }
 })();
 
-window.vhbuildViewer = { go: (i) => go(i, true), pause: () => setPlaying(false), state: () => ({ cur, t, steps: man?.steps.length }) };
+window.vhbuildViewer = {
+  go: (i) => go(i, true), pause: () => setPlaying(false), cover: (id) => pickCover(id, false),
+  at: (i, k) => { cur = Math.max(0, Math.min(i, steps.length - 1)); t = k; apply(); },
+  state: () => ({ cur, t, steps: steps.length, cover, covers: Object.keys(man?.covers || {}) }),
+};

@@ -52,6 +52,11 @@ ol li .n { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 1
 ol li.done .n { color: var(--ok); }
 ol li.cur { background: var(--code); font-weight: 600; }
 ol li:hover { background: var(--code); }
+.cover-row { padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.cover-row label { font-size: 13px; color: var(--muted); }
+.cover-row select { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.cover-row p { margin: 0; width: 100%; font-size: 12px; color: var(--muted); }
+.cover-row p.err { color: var(--err); }
 .machines { border-top: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .machines h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0; }
 .machines .row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -82,7 +87,7 @@ ol li:hover { background: var(--code); }
   <section id="stage">
     <div id="drop">
       <b>Drop a .vbuild file here</b>
-      <p>A .vbuild holds a device designed by V-Hbuild: its 3D model, the enclosure for your printer and the firmware for your board.</p>
+      <p>A .vbuild holds a device designed by V-Hbuild: its 3D model, its cover for a filament printer, a resin printer or a laser cutter, and the firmware for its board.</p>
       <button id="open2">Choose a file</button>
     </div>
     <div id="overlay" hidden>
@@ -96,6 +101,11 @@ ol li:hover { background: var(--code); }
       <button id="play">Pause</button>
       <button class="ghost" id="next" title="Next step" aria-label="Next step">&#9654;</button>
       <button class="ghost" id="restart" title="Start again" aria-label="Start again">&#8634;</button>
+    </div>
+    <div class="cover-row" id="cover-row" hidden>
+      <label for="cover">Cover made on</label>
+      <select id="cover"></select>
+      <p id="cover-note"></p>
     </div>
     <ol id="steps"></ol>
     <div class="machines" id="machines" hidden></div>
